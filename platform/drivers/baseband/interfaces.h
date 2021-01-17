@@ -28,86 +28,43 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>   *
  ***************************************************************************/
 
-#ifndef HWCONFIG_H
-#define HWCONFIG_H
+#ifndef INTERFACES_H
+#define INTERFACES_H
 
-#include "MK22F51212.h"
+#include <stdint.h>
 
-/* Supported radio bands */
-#define BAND_VHF
-#define BAND_UHF
+/*
+ * This file provides a standard interface for low-level data exchange with the
+ * baseband chipset (HR_C6000, AT1846S, ...).
+ * Its aim is to provide a decoupling layer between the chipset drivers, written
+ * to be platform-agnostic, and the platform-specific communication busses.
+ */
 
-/* Band limits in Hz */
-#define FREQ_LIMIT_VHF_LO 136000000
-#define FREQ_LIMIT_VHF_HI 174000000
-#define FREQ_LIMIT_UHF_LO 400000000
-#define FREQ_LIMIT_UHF_HI 470000000
 
-/* Screen dimensions */
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
+/**
+ * Initialise I2C subsystem.
+ */
+void i2c_init();
 
-/* Screen pixel format */
-#define PIX_FMT_BW
+/**
+ * AT1846S specific: write a device register.
+ */
+void i2c_writeReg16(uint8_t reg, uint16_t value);
 
-/* Battery type */
-#define BAT_LIPO_2S
+/**
+ * AT1846S specific: read a device register.
+ */
+uint16_t i2c_readReg16(uint8_t reg);
 
-/* Display */
-#define LCD_BKLIGHT GPIOC,4
-#define LCD_CS      GPIOC,8
-#define LCD_RST     GPIOC,9
-#define LCD_RS      GPIOC,10
-#define LCD_CLK     GPIOC,11
-#define LCD_DAT     GPIOC,12
+/**
+ * HR_C5000 and HR_C6000: initialise "user" SPI interface, the one for chip
+ * configuration.
+ */
+void uSpi_init();
 
-/* Signalling LEDs */
-#define GREEN_LED  GPIOA,17
-#define RED_LED    GPIOC,14
+/**
+ * HR_C5000 and HR_C6000: transfer one byte over the "user" SPI interface.
+ */
+uint8_t uSpi_sendRecv(uint8_t val);
 
-/* Keyboard */
-#define KB_ROW0 GPIOB,19
-#define KB_ROW1 GPIOB,20
-#define KB_ROW2 GPIOB,21
-#define KB_ROW3 GPIOB,22
-#define KB_ROW4 GPIOB,23
-
-#define KB_COL0 GPIOC,0
-#define KB_COL1 GPIOC,1
-#define KB_COL2 GPIOC,2
-#define KB_COL3 GPIOC,3
-
-#define PTT_SW   GPIOA,1
-#define FUNC_SW  GPIOA,2
-#define FUNC2_SW GPIOB,1
-#define MONI_SW  GPIOB,9
-
-/* External flash */
-#define FLASH_CS  GPIOE,6
-#define FLASH_CLK GPIOE,5
-#define FLASH_SDO GPIOE,4
-#define FLASH_SDI GPIOA,19
-
-/* I2C for EEPROM and AT1846S */
-#define I2C_SDA GPIOE,25
-#define I2C_SCL GPIOE,24
-
-/* RTX stage control */
-#define VHF_LNA_EN GPIOC,13
-#define UHF_LNA_EN GPIOC,15
-#define VHF_PA_EN  GPIOE,0
-#define UHF_PA_EN  GPIOE,1
-
-/* Audio control */
-#define AUDIO_AMP_EN GPIOB,0
-#define RX_AUDIO_MUX GPIOC,5
-#define TX_AUDIO_MUX GPIOC,6
-
-#define DMR_RESET GPIOE,2
-#define DMR_SLEEP GPIOE,3
-#define DMR_CS    GPIOD,0
-#define DMR_CLK   GPIOD,1
-#define DMR_MOSI  GPIOD,2
-#define DMR_MISO  GPIOD,3
-
-#endif
+#endif  /* INTERFACES_H */
