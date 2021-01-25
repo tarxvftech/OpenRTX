@@ -28,87 +28,118 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>   *
  ***************************************************************************/
 
-#ifndef HWCONFIG_H
-#define HWCONFIG_H
+#ifndef AT1846S_H
+#define AT1846S_H
 
-#include "MK22F51212.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include <datatypes.h>
 
-/* Supported radio bands */
-#define BAND_VHF
-#define BAND_UHF
+typedef enum
+{
+    AT1846S_BW_12P5 = 0,
+    AT1846S_BW_25   = 1
+}
+AT1846S_bw_t;
 
-/* Band limits in Hz */
-#define FREQ_LIMIT_VHF_LO 136000000
-#define FREQ_LIMIT_VHF_HI 174000000
-#define FREQ_LIMIT_UHF_LO 400000000
-#define FREQ_LIMIT_UHF_HI 470000000
+typedef enum
+{
+    AT1846S_OP_FM  = 0,
+    AT1846S_OP_DMR = 1
+}
+AT1846S_op_t;
 
-/* Screen dimensions */
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
+typedef enum
+{
+    AT1846S_OFF = 0,
+    AT1846S_RX  = 1,
+    AT1846S_TX  = 2,
+}
+AT1846S_func_t;
 
-/* Screen pixel format */
-#define PIX_FMT_BW
+/**
+ *
+ */
+void AT1846S_init();
 
-/* Battery type */
-#define BAT_LIPO_2S
+/**
+ *
+ */
+void AT1846S_postInit();
 
-/* Display */
-#define LCD_BKLIGHT GPIOC,4
-#define LCD_CS      GPIOC,8
-#define LCD_RST     GPIOC,9
-#define LCD_RS      GPIOC,10
-#define LCD_CLK     GPIOC,11
-#define LCD_DAT     GPIOC,12
+/**
+ *
+ */
+void AT1846S_setFrequency(const freq_t freq);
 
-/* Signalling LEDs */
-#define GREEN_LED  GPIOB,18
-#define RED_LED    GPIOC,14
+/**
+ *
+ */
+void AT1846S_setBandwidth(AT1846S_bw_t band);
 
-/* Keyboard */
-#define KB_ROW0 GPIOB,19
-#define KB_ROW1 GPIOB,20
-#define KB_ROW2 GPIOB,21
-#define KB_ROW3 GPIOB,22
-#define KB_ROW4 GPIOB,23
+/**
+ *
+ */
+void AT1846S_setOpMode(AT1846S_op_t mode);
 
-#define KB_COL0 GPIOC,0
-#define KB_COL1 GPIOC,1
-#define KB_COL2 GPIOC,2
-#define KB_COL3 GPIOC,3
+/**
+ *
+ */
+void AT1846S_setFuncMode(AT1846S_func_t mode);
 
-#define PTT_SW   GPIOA,1
-#define FUNC_SW  GPIOA,2
-#define FUNC2_SW GPIOB,1
-#define MONI_SW  GPIOB,9
+/**
+ *
+ */
+uint16_t AT1846S_readRSSI();
 
-/* External flash */
-#define FLASH_CS  GPIOE,6
-#define FLASH_CLK GPIOE,5
-#define FLASH_SDO GPIOE,4
-#define FLASH_SDI GPIOA,19
+/**
+ *
+ */
+void AT1846S_setPgaGain(uint8_t gain);
 
-/* I2C for EEPROM and AT1846S */
-#define I2C_SDA GPIOE,25
-#define I2C_SCL GPIOE,24
+/**
+ *
+ */
+void AT1846S_setMicGain(uint8_t gain);
 
-/* RTX stage control */
-#define VHF_LNA_EN GPIOC,13
-#define UHF_LNA_EN GPIOC,15
-#define VHF_PA_EN  GPIOE,3
-#define UHF_PA_EN  GPIOE,2
+/**
+ *
+ */
+void AT1846S_setTxDeviation(uint16_t dev);
 
-/* Audio control */
-#define AUDIO_AMP_EN GPIOB,0
-#define RX_AUDIO_MUX GPIOC,5
-#define TX_AUDIO_MUX GPIOC,6
+/**
+ *
+ */
+void AT1846S_setAgcGain(uint8_t gain);
 
-/* HR_C6000 control interface */
-#define DMR_RESET GPIOE,0
-#define DMR_SLEEP GPIOE,1
-#define DMR_CS    GPIOD,0
-#define DMR_CLK   GPIOD,1
-#define DMR_MOSI  GPIOD,2
-#define DMR_MISO  GPIOD,3
+/**
+ *
+ */
+void AT1846S_setRxAudioGain(uint8_t gainWb, uint8_t gainNb);
 
-#endif
+/**
+ *
+ */
+void AT1846S_setNoise1Thresholds(uint8_t highTsh, uint8_t lowTsh);
+
+/**
+ *
+ */
+void AT1846S_setNoise2Thresholds(uint8_t highTsh, uint8_t lowTsh);
+
+/**
+ *
+ */
+void AT1846S_setRssiThresholds(uint8_t highTsh, uint8_t lowTsh);
+
+/**
+ *
+ */
+void AT1846S_setPaDrive(uint8_t value);
+
+/**
+ *
+ */
+void AT1846S_setAnalogSqlThresh(uint8_t thresh);
+
+#endif /* AT1846S_H */

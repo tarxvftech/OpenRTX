@@ -84,14 +84,14 @@ void _ui_drawVFOMiddle(state_t* last_state)
 {
     // Print VFO frequencies
     char freq_buf[20] = "";
-    snprintf(freq_buf, sizeof(freq_buf), " Rx:%03u.%05u",
-             last_state->channel.rx_frequency/1000000,
-             last_state->channel.rx_frequency%1000000/10);
+    snprintf(freq_buf, sizeof(freq_buf), " Rx:%03lu.%05lu",
+             (unsigned long)last_state->channel.rx_frequency/1000000,
+             (unsigned long)last_state->channel.rx_frequency%1000000/10);
     gfx_print(layout.line2_left, freq_buf, layout.line2_font, TEXT_ALIGN_CENTER,
               color_white);
-    snprintf(freq_buf, sizeof(freq_buf), " Tx:%03u.%05u",
-             last_state->channel.tx_frequency/1000000,
-             last_state->channel.tx_frequency%1000000/10);
+    snprintf(freq_buf, sizeof(freq_buf), " Tx:%03lu.%05lu",
+             (unsigned long)last_state->channel.tx_frequency/1000000,
+             (unsigned long)last_state->channel.tx_frequency%1000000/10);
     gfx_print(layout.line3_left, freq_buf, layout.line3_font, TEXT_ALIGN_CENTER,
               color_white);
 }
@@ -103,14 +103,14 @@ void _ui_drawMEMMiddle(state_t* last_state)
               color_white);
     // Print Channel frequencies
     char freq_buf[20] = "";
-    snprintf(freq_buf, sizeof(freq_buf), " Rx:%03u.%05u",
-             last_state->channel.rx_frequency/1000000,
-             last_state->channel.rx_frequency%1000000/10);
+    snprintf(freq_buf, sizeof(freq_buf), " Rx:%03lu.%05lu",
+             (unsigned long)last_state->channel.rx_frequency/1000000,
+             (unsigned long)last_state->channel.rx_frequency%1000000/10);
     gfx_print(layout.line2_left, freq_buf, layout.line2_font, TEXT_ALIGN_CENTER,
               color_white);
-    snprintf(freq_buf, sizeof(freq_buf), " Tx:%03u.%05u",
-             last_state->channel.tx_frequency/1000000,
-             last_state->channel.tx_frequency%1000000/10);
+    snprintf(freq_buf, sizeof(freq_buf), " Tx:%03lu.%05lu",
+             (unsigned long)last_state->channel.tx_frequency/1000000,
+             (unsigned long)last_state->channel.tx_frequency%1000000/10);
     gfx_print(layout.line3_left, freq_buf, layout.line3_font, TEXT_ALIGN_CENTER,
               color_white);
 }
@@ -121,15 +121,15 @@ void _ui_drawVFOMiddleInput(state_t* last_state, ui_state_t* ui_state)
     uint8_t insert_pos = ui_state->input_position + 3;
     if(ui_state->input_position > 3) insert_pos += 1;
     char input_char = ui_state->input_number + '0';
-    char freq_buf[14] = "";
+    char freq_buf[15] = "";
 
     if(ui_state->input_set == SET_RX)
     {
         if(ui_state->input_position == 0)
         {
-            snprintf(freq_buf, sizeof(freq_buf), ">Rx:%03u.%05u",
-                     ui_state->new_rx_frequency/1000000,
-                     ui_state->new_rx_frequency%1000000/10);
+            snprintf(freq_buf, sizeof(freq_buf), ">Rx:%03lu.%05lu",
+                     (unsigned long)ui_state->new_rx_frequency/1000000,
+                     (unsigned long)ui_state->new_rx_frequency%1000000/10);
             gfx_print(layout.line2_left, freq_buf, layout.line2_font, TEXT_ALIGN_CENTER,
                       color_white);
         }
@@ -142,25 +142,25 @@ void _ui_drawVFOMiddleInput(state_t* last_state, ui_state_t* ui_state)
             gfx_print(layout.line2_left, ui_state->new_rx_freq_buf, layout.line2_font, TEXT_ALIGN_CENTER,
                       color_white);
         }
-        snprintf(freq_buf, sizeof(freq_buf), " Tx:%03u.%05u",
-                 last_state->channel.tx_frequency/1000000,
-                 last_state->channel.tx_frequency%1000000/10);
+        snprintf(freq_buf, sizeof(freq_buf), " Tx:%03lu.%05lu",
+                 (unsigned long)last_state->channel.tx_frequency/1000000,
+                 (unsigned long)last_state->channel.tx_frequency%1000000/10);
         gfx_print(layout.line3_left, freq_buf, layout.line3_font, TEXT_ALIGN_CENTER,
                   color_white);
     }
     else if(ui_state->input_set == SET_TX)
     {
-        snprintf(freq_buf, sizeof(freq_buf), " Rx:%03u.%05u",
-                 ui_state->new_rx_frequency/1000000,
-                 ui_state->new_rx_frequency%1000000/10);
+        snprintf(freq_buf, sizeof(freq_buf), " Rx:%03lu.%05lu",
+                 (unsigned long)ui_state->new_rx_frequency/1000000,
+                 (unsigned long)ui_state->new_rx_frequency%1000000/10);
         gfx_print(layout.line2_left, freq_buf, layout.line2_font, TEXT_ALIGN_CENTER,
                   color_white);
         // Replace Rx frequency with underscorses
         if(ui_state->input_position == 0)
         {
-            snprintf(freq_buf, sizeof(freq_buf), ">Tx:%03u.%05u",
-                     ui_state->new_rx_frequency/1000000,
-                     ui_state->new_rx_frequency%1000000/10);
+            snprintf(freq_buf, sizeof(freq_buf), ">Tx:%03lu.%05lu",
+                     (unsigned long)ui_state->new_rx_frequency/1000000,
+                     (unsigned long)ui_state->new_rx_frequency%1000000/10);
             gfx_print(layout.line3_left, freq_buf, layout.line3_font, TEXT_ALIGN_CENTER,
                       color_white);
         }

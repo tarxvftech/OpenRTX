@@ -28,87 +28,48 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>   *
  ***************************************************************************/
 
-#ifndef HWCONFIG_H
-#define HWCONFIG_H
+#ifndef HRC6000_H
+#define HRC6000_H
 
-#include "MK22F51212.h"
+#include <stdint.h>
+#include <stdbool.h>
 
-/* Supported radio bands */
-#define BAND_VHF
-#define BAND_UHF
+#include <calibInfo_GDx.h>
 
-/* Band limits in Hz */
-#define FREQ_LIMIT_VHF_LO 136000000
-#define FREQ_LIMIT_VHF_HI 174000000
-#define FREQ_LIMIT_UHF_LO 400000000
-#define FREQ_LIMIT_UHF_HI 470000000
+/**
+ * Initialise the HR_C6000 driver.
+ */
+void C6000_init();
 
-/* Screen dimensions */
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
+/**
+ * Terminate the HR_C6000 driver.
+ */
+void C6000_terminate();
 
-/* Screen pixel format */
-#define PIX_FMT_BW
+/**
+ * 
+ */
+void C6000_setModOffset(uint16_t offset);
 
-/* Battery type */
-#define BAT_LIPO_2S
+/**
+ * 
+ */
+void C6000_setMod1Amplitude(uint8_t amplitude);
 
-/* Display */
-#define LCD_BKLIGHT GPIOC,4
-#define LCD_CS      GPIOC,8
-#define LCD_RST     GPIOC,9
-#define LCD_RS      GPIOC,10
-#define LCD_CLK     GPIOC,11
-#define LCD_DAT     GPIOC,12
+/**
+ * 
+ */
+void C6000_setMod2Bias(uint8_t bias);
 
-/* Signalling LEDs */
-#define GREEN_LED  GPIOB,18
-#define RED_LED    GPIOC,14
+/**
+ * 
+ */
+void C6000_setDacRange(uint8_t value);
 
-/* Keyboard */
-#define KB_ROW0 GPIOB,19
-#define KB_ROW1 GPIOB,20
-#define KB_ROW2 GPIOB,21
-#define KB_ROW3 GPIOB,22
-#define KB_ROW4 GPIOB,23
+/**
+ * Check if SPI common to HR_C6000 and PLL is in use by this driver.
+ * @return true if SPI lines are being used by this driver.
+ */
+bool C6000_spiInUse();
 
-#define KB_COL0 GPIOC,0
-#define KB_COL1 GPIOC,1
-#define KB_COL2 GPIOC,2
-#define KB_COL3 GPIOC,3
-
-#define PTT_SW   GPIOA,1
-#define FUNC_SW  GPIOA,2
-#define FUNC2_SW GPIOB,1
-#define MONI_SW  GPIOB,9
-
-/* External flash */
-#define FLASH_CS  GPIOE,6
-#define FLASH_CLK GPIOE,5
-#define FLASH_SDO GPIOE,4
-#define FLASH_SDI GPIOA,19
-
-/* I2C for EEPROM and AT1846S */
-#define I2C_SDA GPIOE,25
-#define I2C_SCL GPIOE,24
-
-/* RTX stage control */
-#define VHF_LNA_EN GPIOC,13
-#define UHF_LNA_EN GPIOC,15
-#define VHF_PA_EN  GPIOE,3
-#define UHF_PA_EN  GPIOE,2
-
-/* Audio control */
-#define AUDIO_AMP_EN GPIOB,0
-#define RX_AUDIO_MUX GPIOC,5
-#define TX_AUDIO_MUX GPIOC,6
-
-/* HR_C6000 control interface */
-#define DMR_RESET GPIOE,0
-#define DMR_SLEEP GPIOE,1
-#define DMR_CS    GPIOD,0
-#define DMR_CLK   GPIOD,1
-#define DMR_MOSI  GPIOD,2
-#define DMR_MISO  GPIOD,3
-
-#endif
+#endif /* HRC6000_H */
