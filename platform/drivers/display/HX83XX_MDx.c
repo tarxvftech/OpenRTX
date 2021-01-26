@@ -311,6 +311,8 @@ void display_init()
     uint8_t displayCfg = 0;
     W25Qx_readSecurityRegister(0x301D, &displayCfg, 1);
 
+    printf("Display type %x %x\r\n", displayCfg, (displayCfg & 0x03));
+
     writeCmd(CMD_MADCTL);
     if((displayCfg & 0x03) != 3)
     {

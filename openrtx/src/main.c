@@ -38,9 +38,13 @@
 #include <interfaces/graphics.h>
 #include <hwconfig.h>
 
+#include <stdio.h>
+
 int main(void)
 {
     OS_ERR os_err;
+
+    getchar();
 
     // Initialize platform drivers
     platform_init();
