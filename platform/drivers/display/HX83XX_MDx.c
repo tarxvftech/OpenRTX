@@ -231,7 +231,6 @@ void display_init()
      * Since we do not have the datasheet for the controller employed in this
      * screen, we can only copy-and-paste...
      */
-
     writeCmd(0xfe);
     writeCmd(0xef);
     writeCmd(0xb4);
@@ -289,170 +288,6 @@ void display_init()
     writeData(0x00);
     delayMs(20);
 
-//     if((displayCfg != 2) && (displayCfg!= 3))
-//     {
-//         writeCmd(0x11);
-//         delayMs(120);
-//         writeCmd(0xB1);
-//         writeData(5);
-//         writeData(0x3C);
-//         writeData(0x3C);
-//         writeCmd(0xB2);
-//         writeData(5);
-//         writeData(0x3C);
-//         writeData(0x3C);
-//         writeCmd(0xB3);
-//         writeData(5);
-//         writeData(0x3C);
-//         writeData(0x3C);
-//         writeData(5);
-//         writeData(0x3C);
-//         writeData(0x3C);
-//         writeCmd(0xB4);
-//         writeData(3);
-//         writeCmd(0xC0);
-//         writeData(0x28);
-//         writeData(8);
-//         writeData(4);
-//         writeCmd(0xC1);
-//         writeData(0xC0);
-//         writeCmd(0xC2);
-//         writeData(0xD);
-//         writeData(0);
-//         writeCmd(0xC3);
-//         writeData(0x8D);
-//         writeData(0x2A);
-//         writeCmd(0xC4);
-//         writeData(0x8D);
-//         writeData(0xEE);
-//         writeCmd(0xC5);
-//         writeData(0x1A);
-//         writeCmd(0x36);
-//         writeData(8);
-//         writeCmd(0xE0);
-//         writeData(4);
-//         writeData(0xC);
-//         writeData(7);
-//         writeData(0xA);
-//         writeData(0x2E);
-//         writeData(0x30);
-//         writeData(0x25);
-//         writeData(0x2A);
-//         writeData(0x28);
-//         writeData(0x26);
-//         writeData(0x2E);
-//         writeData(0x3A);
-//         writeData(0);
-//         writeData(1);
-//         writeData(3);
-//         writeData(0x13);
-//         writeCmd(0xE1);
-//         writeData(4);
-//         writeData(0x16);
-//         writeData(6);
-//         writeData(0xD);
-//         writeData(0x2D);
-//         writeData(0x26);
-//         writeData(0x23);
-//         writeData(0x27);
-//         writeData(0x27);
-//         writeData(0x25);
-//         writeData(0x2D);
-//         writeData(0x3B);
-//         writeData(0);
-//         writeData(1);
-//         writeData(4);
-//         writeData(0x13);
-//         writeCmd(0x3A);
-//         writeData(5);
-//         writeCmd(0x36);
-//
-//         if(displayCfg == 1)
-//             writeData(0x60);//writeData(200);
-//         else
-//             writeData(0xA0);//writeData(8);
-//
-//         writeCmd(0x29);
-//         writeCmd(0x2C);
-//     }
-//     else
-//     {
-//         writeCmd(0x3A);
-//         writeData(5);
-//         writeCmd(0x36);
-//
-//         if(displayCfg == 3)
-//             writeData(0xA0);//writeData(8);
-//         else
-//             writeData(0x60);//writeData(0x48);
-//
-//         writeCmd(0xFE);
-//         writeCmd(0xEF);
-//         writeCmd(0xB4);
-//         writeData(0);
-//         writeCmd(0xFF);
-//         writeData(0x16);
-//         writeCmd(0xfd);
-//
-//         if(displayCfg == 3)
-//             writeData(0x40);
-//         else
-//             writeData(0x4F);
-//
-//         writeCmd(0xA4);
-//         writeData(0x70);
-//         writeCmd(0xE7);
-//         writeData(0x94);
-//         writeData(0x88);
-//         writeCmd(0xEA);
-//         writeData(0x3A);
-//         writeCmd(0xED);
-//         writeData(0x11);
-//         writeCmd(0xE4);
-//         writeData(0xC5);
-//         writeCmd(0xE2);
-//         writeData(0x80);
-//         writeCmd(0xA3);
-//         writeData(18);
-//         writeCmd(0xE3);
-//         writeData(7);
-//         writeCmd(0xE5);
-//         writeData(0x10);
-//         writeCmd(0xF0);
-//         writeData(0);
-//         writeCmd(0xF1);
-//         writeData(0x55);
-//         writeCmd(0xF2);
-//         writeData(5);
-//         writeCmd(0xF3);
-//         writeData(0x53);
-//         writeCmd(0xF4);
-//         writeData(0);
-//         writeCmd(0xF5);
-//         writeData(0);
-//         writeCmd(0xF7);
-//         writeData(0x27);
-//         writeCmd(0xF8);
-//         writeData(0x22);
-//         writeCmd(0xF9);
-//         writeData(0x77);
-//         writeCmd(0xFA);
-//         writeData(0x35);
-//         writeCmd(0xFB);
-//         writeData(0);
-//         writeCmd(0xFC);
-//         writeData(0);
-//         writeCmd(0xFE);
-//         writeCmd(0xEF);
-//         writeCmd(0xE9);
-//         writeData(0);
-//         delayMs(20);
-//         writeCmd(0x11);
-//         delayMs(130);
-//         writeCmd(0x29);
-//         writeCmd(0x2C);
-//     }
-
     /** The registers and commands below are the same in HX8353-E controller **/
 
     /*
@@ -475,22 +310,16 @@ void display_init()
 
     uint8_t displayCfg = 0;
     W25Qx_readSecurityRegister(0x301D, &displayCfg, 1);
-    displayCfg &= 3;
 
     writeCmd(CMD_MADCTL);
-    if(displayCfg == 3)
-    {
-        writeData(0xA0);    /* MD380 and similar radios: screen mirrored */
-    }
-    else
+    if((displayCfg & 0x03) != 3)
     {
         writeData(0x60);    /* MD390 and similar radios: screen "normal" */
     }
-//     #ifndef DISPLAY_MIRROR_X
-//     writeData(0x60);    /* MD390 and similar radios: screen "normal" */
-//     #else
-//     writeData(0xA0);    /* MD380 and similar radios: screen mirrored */
-//     #endif
+    else
+    {
+        writeData(0xA0);    /* MD380 and similar radios: screen mirrored */
+    }
 
     writeCmd(CMD_CASET);
     writeData(0x00);
