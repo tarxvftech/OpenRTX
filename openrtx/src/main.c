@@ -44,8 +44,6 @@ int main(void)
 {
     OS_ERR os_err;
 
-    getchar();
-
     // Initialize platform drivers
     platform_init();
 

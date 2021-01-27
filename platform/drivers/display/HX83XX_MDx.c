@@ -314,16 +314,19 @@ void display_init()
     W25Qx_readSecurityRegister(0x301D, &displayCfg, 1);
     W25Qx_sleep();
 
-//     printf("Display type %x %x\r\n", displayCfg, (displayCfg & 0x03));
-
+    displayCfg &= 3;
     writeCmd(CMD_MADCTL);
-    if((displayCfg & 0x03) != 3)
+    if(displayCfg == 1)
     {
-        writeData(0x60);    /* MD390 and similar radios: screen "normal" */
+        writeData(0x60);
+    }
+    else if(displayCfg == 2)
+    {
+        writeData(0x20);
     }
     else
     {
-        writeData(0xA0);    /* MD380 and similar radios: screen mirrored */
+        writeData(0xA0);
     }
 
     writeCmd(CMD_CASET);
