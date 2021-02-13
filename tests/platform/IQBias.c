@@ -80,20 +80,17 @@ int main(void)
     /* After mutex has been released, post the new configuration */
     rtx_configure(&cfg);
 
+    unsigned char iBias = 0;
+    unsigned char qBias = 0;
     while (1)
     {
-        unsigned char iBias = 0;
-        unsigned char qBias = 0;
-
-        int i = getc(stdin);
-        int q = getc(stdin);
-
-        if(i > 0) iBias = ((unsigned char) i);
-        if(q > 0) qBias = ((unsigned char) q);
-
+        /*getchar();*/
+        /*iBias = iBias == 250 ? 1 : 250;*/
+        qBias = qBias == 127 ? 128 : 127;
         C5000_changeIQbias(iBias, qBias);
-        printf("MIKE MIKE MIKE I: %d, Q: %d\r\n", iBias, qBias);
+        printf("I: %d, Q: %d\r\n", iBias, qBias);
 
+        /*OSTimeDlyHMSM(0u, 0u, 0u, 250u, OS_OPT_TIME_HMSM_STRICT, &err);*/
         OSTimeDlyHMSM(0u, 0u, 0u, 250u, OS_OPT_TIME_HMSM_STRICT, &err);
     }
 

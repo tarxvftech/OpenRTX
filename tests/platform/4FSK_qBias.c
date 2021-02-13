@@ -40,6 +40,7 @@
 #include "hwconfig.h"
 #include "toneGenerator_MDx.h"
 #include "HR-C5000_MD3x0.h"
+#include <interfaces/delays.h>
 
 OS_MUTEX mutex;
 OS_ERR err;
@@ -79,22 +80,31 @@ int main(void)
 
     /* After mutex has been released, post the new configuration */
     rtx_configure(&cfg);
+    uint8_t fskbins[4] = {128, 213, 43, 127};
 
+    uint8_t fsk_idx = 0;
+    bool dir = true;
     while (1)
     {
-        unsigned char iBias = 0;
-        unsigned char qBias = 0;
+        C5000_changeIQbias(0, fskbins[fsk_idx]);
+        /*printf("fsk_idx: %d\r\n", fsk_idx);*/
+        /*if( dir && fsk_idx < 3 ){*/
+            /*fsk_idx++;*/
+        /*} else if (dir && fsk_idx >= 3 ){*/
+            /*fsk_idx--;*/
+            /*dir = false;*/
+        /*} else if ( !dir && fsk_idx > 0 ){*/
+            /*fsk_idx--;*/
+        /*} else if ( !dir && fsk_idx <= 0 ){*/
+            /*fsk_idx++;*/
+            /*dir=true;*/
+        /*} else {*/
+            /*fsk_idx++;*/
+        /*}*/
+        /*fsk_idx = (fsk_idx +1 )%4;*/
+        fsk_idx = fsk_idx == 3 ? 0 : 3;
+        /*delayUs(833-120); //833 is 1/1200-ish, and then there's an average 120uS delay from the changeIQBias (I assume its from that)*/
 
-        int i = getc(stdin);
-        int q = getc(stdin);
-
-        if(i > 0) iBias = ((unsigned char) i);
-        if(q > 0) qBias = ((unsigned char) q);
-
-        C5000_changeIQbias(iBias, qBias);
-        printf("MIKE MIKE MIKE I: %d, Q: %d\r\n", iBias, qBias);
-
-        OSTimeDlyHMSM(0u, 0u, 0u, 250u, OS_OPT_TIME_HMSM_STRICT, &err);
     }
 
     return 0;
