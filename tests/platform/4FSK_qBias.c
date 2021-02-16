@@ -84,6 +84,12 @@ int main(void)
 
     uint8_t fsk_idx = 0;
     bool dir = true;
+    /*void changeWithSteps(int numsteps, int from, int to ){*/
+        /*int stepsize = from-to*/
+        /*for( int i = from; i < to; i += stepsize ){*/
+            /*C5000_changeIQbias(0, fskbins[i]);*/
+        /*}*/
+    /*}*/
     while (1)
     {
         C5000_changeIQbias(0, fskbins[fsk_idx]);
@@ -104,6 +110,7 @@ int main(void)
         /*fsk_idx = (fsk_idx +1 )%4;*/
         fsk_idx = fsk_idx == 3 ? 0 : 3;
         /*delayUs(833-120); //833 is 1/1200-ish, and then there's an average 120uS delay from the changeIQBias (I assume its from that)*/
+        delayUs(1125); //generate a nice tone :P
 
     }
 
