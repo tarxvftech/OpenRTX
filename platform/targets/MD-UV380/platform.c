@@ -157,7 +157,7 @@ float platform_getMicLevel()
 
 float platform_getVolumeLevel()
 {
-    return 0.0f;
+    return adc1_getMeasurement(1);
 }
 
 uint8_t platform_getChSelector()
