@@ -34,7 +34,6 @@
 #include <interfaces/gpio.h>
 #include <interfaces/delays.h>
 #include <hwconfig.h>
-#include <os.h>
 #include <calibUtils.h>
 
 #include <stdio.h>
@@ -204,11 +203,11 @@ void C6000_setMod2Bias(uint8_t bias)
     _writeReg(0x04, 0x04, bias);
 }
 
-void C6000_setDacRange(uint8_t value)
+void C6000_setDacGain(uint8_t value)
 {
-    uint8_t dacData = value + 1;
-    if(dacData > 31) dacData = 31;
-    _writeReg(0x04, 0x37, dacData);
+    if(value < 1)  value = 1;
+    if(value > 31) value = 31;
+    _writeReg(0x04, 0x37, (0x80 | value));
 }
 
 void C6000_dmrMode()
@@ -266,7 +265,7 @@ void C6000_fmMode()
     _writeReg(0x04, 0x11, 0x80);
     _writeReg(0x04, 0xE0, 0xC9);
 
-    _writeReg(0x04, 0x37, 0x80);
+    _writeReg(0x04, 0x37, 0x81);
 }
 
 void C6000_startAnalogTx()
@@ -300,7 +299,7 @@ void C6000_stopAnalogTx()
     _writeReg(0x04, 0x60, 0x00);
     _writeReg(0x04, 0xE0, 0xC9);
 
-    _writeReg(0x04, 0x37, 0x80);
+    _writeReg(0x04, 0x37, 0x81);
 }
 
 bool C6000_spiInUse()
