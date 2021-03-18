@@ -13,6 +13,9 @@ RUN git clone https://github.com/v0l/radio_tool.git /radio_tool && \
 	cmake .. && make -j4
 RUN cp /radio_tool/build/radio_tool /usr/bin/
 
+RUN pacman -S --noconfirm wget
+RUN wget https://miosix.org/toolchain/MiosixToolchainInstaller.run && sh MiosixToolchainInstaller.run
+
 #allow for automated builds
 ADD ./ /app
 
