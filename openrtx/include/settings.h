@@ -49,7 +49,7 @@ static const settings_t default_settings =
     255,       // Brightness
     71,        // Contrast
     0,         // UTC Timezone
-    false,     // GPS enabled
+    true,     // GPS enabled //TODO for mike testing, don't save
     true       // GPS set time
 };
 

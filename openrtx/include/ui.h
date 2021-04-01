@@ -56,6 +56,7 @@ enum uiScreen
     MENU_CONTACTS,
     MENU_SMS,
     MENU_GPS,
+    MENU_SAT,
     MENU_SETTINGS,
     MENU_INFO,
     MENU_ABOUT,
@@ -82,6 +83,7 @@ enum menuItems
     M_MESSAGES,
 #ifdef HAS_GPS
     M_GPS,
+    M_SAT,
 #endif
     M_SETTINGS,
     M_INFO,

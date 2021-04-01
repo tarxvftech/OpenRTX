@@ -102,6 +102,7 @@ extern void _ui_drawMenuChannel(ui_state_t* ui_state);
 extern void _ui_drawMenuContacts(ui_state_t* ui_state);
 #ifdef HAS_GPS
 extern void _ui_drawMenuGPS();
+extern void _ui_drawMenuSAT();
 extern void _ui_drawSettingsGPS(ui_state_t* ui_state);
 #endif
 extern void _ui_drawMenuSettings(ui_state_t* ui_state);
@@ -122,6 +123,7 @@ const char *menu_items[] =
     "Messages",
 #ifdef HAS_GPS
     "GPS",
+    "SAT",
 #endif
     "Settings",
     "Info",
@@ -881,6 +883,13 @@ void ui_updateFSM(event_t event, bool *sync_rtx)
                         case M_GPS:
                             state.ui_screen = MENU_GPS;
                             break;
+                        case M_SAT: 
+                            //can be broken out of GPS-only if:
+                            // UI for location entry (e.g. FN41sq)
+                            // only useful if time is still accurate
+                            state.ui_screen = MENU_SAT;
+                            break;
+
 #endif
                         case M_SETTINGS:
                             state.ui_screen = MENU_SETTINGS;
@@ -974,6 +983,10 @@ void ui_updateFSM(event_t event, bool *sync_rtx)
 #ifdef HAS_GPS
             // GPS menu screen
             case MENU_GPS:
+                if(msg.keys & KEY_ESC)
+                    _ui_menuBack(MENU_TOP);
+                break;
+            case MENU_SAT:
                 if(msg.keys & KEY_ESC)
                     _ui_menuBack(MENU_TOP);
                 break;
@@ -1204,6 +1217,9 @@ void ui_updateGUI()
         // GPS menu screen
         case MENU_GPS:
             _ui_drawMenuGPS();
+            break;
+        case MENU_SAT:
+            _ui_drawMenuSAT();
             break;
 #endif
         // Settings menu screen
