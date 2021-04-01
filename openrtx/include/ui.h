@@ -55,6 +55,7 @@ enum uiScreen
     MENU_CHANNEL,
     MENU_CONTACTS,
     MENU_GPS,
+    MENU_SAT,
     MENU_SETTINGS,
     MENU_INFO,
     MENU_ABOUT,
@@ -80,6 +81,7 @@ enum menuItems
     M_CONTACTS,
 #ifdef HAS_GPS
     M_GPS,
+    M_SAT,
 #endif
     M_SETTINGS,
     M_INFO,
