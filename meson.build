@@ -55,8 +55,8 @@ minmea_src = ['lib/minmea/minmea.c']
 
 minmea_inc = ['lib/minmea/include']
 
-src = openrtx_src + minmea_src
-inc = openrtx_inc + rtos_inc + minmea_inc
+#src = openrtx_src + minmea_src
+#inc = openrtx_inc + rtos_inc + minmea_inc
 
 
 ## maidenhead has functions for converting maidenhead grid squares  (FN41)
@@ -65,7 +65,14 @@ maidenhead_src = ['lib/maidenhead/maidenhead.c']
 maidenhead_inc = ['lib/maidenhead/']
 
 ## lunar and sat_code are used for orbit prediction capabilities
-lunar_src = []
+lunar_src = [
+'lib/lunar/alt_az.cpp',
+'lib/lunar/precess.cpp',
+'lib/lunar/miscell.cpp',
+'lib/lunar/obliquit.cpp',
+'lib/lunar/nutation.cpp',
+'lib/lunar/date.cpp',
+  ]
 lunar_inc = ['lib/lunar/']
 satcode_src = [
 'lib/sat_code/sgp.cpp',
