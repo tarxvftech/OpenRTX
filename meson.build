@@ -67,8 +67,8 @@ rtos_inc = ['lib/miosix-kernel',
             'lib/miosix-kernel/config/arch/cortexM4_stm32f4/M4_openrtx']
 
 
-src = openrtx_src + minmea_src
-inc = openrtx_inc + rtos_inc + minmea_inc + qdec_inc
+#src = openrtx_src + minmea_src
+#inc = openrtx_inc + rtos_inc + minmea_inc + qdec_inc
 def = {'DONT_USE_CMSIS_INIT': ''}
 
 ## Add git commit or tag to print in OpenRTX
@@ -90,7 +90,14 @@ maidenhead_src = ['lib/maidenhead/maidenhead.c']
 maidenhead_inc = ['lib/maidenhead/']
 
 ## lunar and sat_code are used for orbit prediction capabilities
-lunar_src = []
+lunar_src = [
+'lib/lunar/alt_az.cpp',
+'lib/lunar/precess.cpp',
+'lib/lunar/miscell.cpp',
+'lib/lunar/obliquit.cpp',
+'lib/lunar/nutation.cpp',
+'lib/lunar/date.cpp',
+  ]
 lunar_inc = ['lib/lunar/']
 satcode_src = [
 'lib/sat_code/sgp.cpp',
@@ -110,7 +117,7 @@ satcode_inc = ['lib/sat_code/']
 
 
 src = openrtx_src + minmea_src + maidenhead_src + lunar_src + satcode_src
-inc = openrtx_inc + rtos_inc + minmea_inc + maidenhead_inc + lunar_inc + satcode_inc
+inc = openrtx_inc + rtos_inc + minmea_inc + qdec_inc + maidenhead_inc + lunar_inc + satcode_inc
 
 ##
 ## TYT MDx family

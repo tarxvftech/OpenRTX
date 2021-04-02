@@ -42,6 +42,8 @@
 #include <observe.h>
 #define PI  3.141592653589793238462643383279
 #define CENTURY 2000
+extern void _ui_drawMainBackground();
+extern void _ui_drawBottom();
 
 double curTime_to_julian_day(curTime_t t){
   //expects t to be after year 2000
@@ -52,7 +54,7 @@ double curTime_to_julian_day(curTime_t t){
   uint8_t D = t.date; //.day is the _weekday_, date is day-of-month
   uint8_t M = t.month;
   short Y = CENTURY + t.year;
-  printf("%04d/%02d/%02d  %02d:%02d:%02d\n", Y,M,D,h,m,s);
+  /*printf("%04d/%02d/%02d  %02d:%02d:%02d\n", Y,M,D,h,m,s);*/
 
   int Z = Y + (M-14)/12; //relies on int truncation
   const short Fvec[] = {306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275 };
@@ -68,8 +70,7 @@ double curTime_to_julian_day(curTime_t t){
   jd += ((float)h)/24 + ((float)m)/1440 + ((float)s)/86400;
   //voila!
 
-
-  printf("jd: %.6f\n",jd);
+  /*printf("jd: %.6f\n",jd);*/
   return jd;
 }
 void test_curTime_to_julian_day(){
@@ -154,13 +155,15 @@ void ra_dec_to_az_alt(double jd,
 
    *az_out = az;
    *alt_out = alt;
+   return;
 }
 
 
-int calcSat( tle_t tle, double time_jd, double lat, double lon, double height_meters,
-      double * out_ra,
-      double * out_dec,
-      double * out_dist
+int calcSat( tle_t tle, double time_jd, 
+    double lat, double lon, double height_meters,
+    double * out_ra,
+    double * out_dec,
+    double * out_dist
       ){
    int is_deep = select_ephemeris( &tle );
    int ephem = 1;       /* default to SGP4 */
@@ -177,7 +180,6 @@ int calcSat( tle_t tle, double time_jd, double lat, double lon, double height_me
    double vel[3];
    int err_val = 0;
 
-
    //remember to put lat and lon in rad by this point
    earth_lat_alt_to_parallax( lat, height_meters, &rho_cos_phi, &rho_sin_phi);
    observer_cartesian_coords( time_jd, lon , rho_cos_phi, rho_sin_phi, observer_loc);
@@ -192,23 +194,23 @@ int calcSat( tle_t tle, double time_jd, double lat, double lon, double height_me
    switch( ephem) {
       case 0:
          SGP_init( sat_params, &tle);
-         err_val = SGP( t_since, &tle, sat_params, pos, vel);
+         err_val = SGP( t_since, &tle, sat_params, pos, NULL);
          break;
       case 1:
          SGP4_init( sat_params, &tle);
-         err_val = SGP4( t_since, &tle, sat_params, pos, vel);
+         err_val = SGP4( t_since, &tle, sat_params, pos, NULL);
          break;
       case 2:
          SGP8_init( sat_params, &tle);
-         err_val = SGP8( t_since, &tle, sat_params, pos, vel);
+         err_val = SGP8( t_since, &tle, sat_params, pos, NULL);
          break;
       case 3:
          SDP4_init( sat_params, &tle);
-         err_val = SDP4( t_since, &tle, sat_params, pos, vel);
+         err_val = SDP4( t_since, &tle, sat_params, pos, NULL);
          break;
       case 4:
          SDP8_init( sat_params, &tle);
-         err_val = SDP8( t_since, &tle, sat_params, pos, vel);
+         err_val = SDP8( t_since, &tle, sat_params, pos, NULL);
          break;
       default:
          printf( "? How did we get here? ephem = %d\n", ephem);
@@ -650,33 +652,44 @@ void _ui_drawMenuSAT()
     char sbuf[25] = { 0 };
     gfx_clearScreen();
 
-    float lat = last_state.gps_data.latitude;
-    float lon = last_state.gps_data.longitude;
-    float alt = last_state.gps_data.altitude; //msl geoid meters
+    if( 0 ){ //! last_state.settings.gps_enabled || last_state.gps_data.fix_quality == 0 ){
+      //fix_type is 1 sometimes when it shouldn't be, have to use fix_quality
+      gfx_print(layout.line3_pos, "no gps fix", FONT_SIZE_12PT, TEXT_ALIGN_CENTER, color_white);
+      return;
+    }
+    /*float lat = last_state.gps_data.latitude;*/
+    float lat =  41.70011;
+    /*float lon = last_state.gps_data.longitude;*/
+    float lon = -70.29947;
+    /*float alt = last_state.gps_data.altitude; //msl geoid meters*/
+    float alt = 0; //msl geoid meters
     latlon pos;
     pos.lat = lat;
     pos.lon = lon;
     char gridsquare[7] = {0};
     latlon_to_maidenhead_locator(pos, gridsquare, 3);
-
+    gfx_print(layout.line2_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
 
     tle_t tle; 
     //replace this with a system of storing 
     //tle_t's in codeplug area later
     //
     //iss
-    /*char * line1 = "1 25544U 98067A   21090.24132166  .00001671  00000-0  38531-4 0  9996";*/
-    /*char * line2 = "2 25544  51.6473   8.2465 0003085 162.7840 356.2009 15.48967005276518";*/
+    char * line1 = "1 25544U 98067A   21090.24132166  .00001671  00000-0  38531-4 0  9996";
+    char * line2 = "2 25544  51.6473   8.2465 0003085 162.7840 356.2009 15.48967005276518";
 
     //qo-100
-    char * line1 = "1 43700U 18090A   21091.25978243  .00000133  00000-0  00000+0 0  9991";
-    char * line2 = "2 43700   0.0249 193.2167 0002611 211.4635 264.4585  1.00269262  8833";
+    /*char * line1 = "1 43700U 18090A   21091.25978243  .00000133  00000-0  00000+0 0  9991";*/
+    /*char * line2 = "2 43700   0.0249 193.2167 0002611 211.4635 264.4585  1.00269262  8833";*/
     int err_val = parse_elements( line1, line2, &tle );
 
     double jd = curTime_to_julian_day(last_state.time);
     //decimal time in hours
     double UT = (double)last_state.time.hour + ((double)last_state.time.minute)/60 + ((double) last_state.time.second)/3600;
-    /*jd += UT/24;*/
+
+    /*printf("JD %.6f\r\n", jd);*/
+    snprintf(sbuf, 25, "JD %.6f", jd);
+    gfx_print(layout.line3_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
 
     //TODO:
     //drawing system for illustrating a pass?
@@ -689,14 +702,39 @@ void _ui_drawMenuSAT()
 
     double latr = lat*PI/180; //sat code works in radians
     double lonr = lon*PI/180; //so r for radians
-    double ra;
-    double dec;
-    double dist;
+    double ra = 0;
+    double dec = 0;
+    double dist = 0;
+    double ra2 = 0;
+    double dec2 = 0;
+    double dist2 = 0;
+    double time_offset = 5;
+    double toff_jd = time_offset/(24*60*60);
     calcSat( tle, jd, latr, lonr, alt, &ra, &dec, &dist);
-    double az;
-    double elev;
+    calcSat( tle, jd + toff_jd, latr, lonr, alt, &ra2, &dec2, &dist2);
+    float toff_dist = dist-dist2; //km difference
+    float radial_v = (toff_dist)/time_offset; //km/s
+    float freq = 433e6; //MHz
+    int doppler_offset = freq*radial_v/300000; //hz
+    
+    /*printf("toff_jd: %.20f\r\n", toff_jd);*/
+    /*printf("dd: %.20f\r\n", toff_dist);*/
+    /*printf("doppler_offset: %d Hz\r\n", doppler_offset);*/
+    /*snprintf(sbuf, 25, "rv %.1f", radial_v);*/
+    /*gfx_print(layout.line2_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);*/
+    /*snprintf(sbuf, 25, "dec %.6f", dec);*/
+    /*gfx_print(layout.line2_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);*/
+
+    double az = 0;
+    double elev = 0;
     ra_dec_to_az_alt(jd, latr, lonr, ra, dec, &az, &elev);
-    elev *= 180/PI;
+    //replace with lunars:
+    //void DLL_FUNC full_ra_dec_to_alt_az( const DPT DLLPTR *ra_dec,
+    /*          DPT DLLPTR *alt_az,*/
+    /*          DPT DLLPTR *loc_epoch, const DPT DLLPTR *latlon,*/
+    /*          const double jd_utc, double DLLPTR *hr_ang)*/
+
+    elev *= 180/PI; //radians to degrees
     az *= 180/PI;
 
     /*double pass = nextpass_jd(tle, jd, lat, lon, alt ); //works in degrees*/
@@ -705,14 +743,9 @@ void _ui_drawMenuSAT()
     //I've been using this to keep an eye on alignment, but remove later
     gfx_drawVLine(SCREEN_WIDTH/2, 1, color_grey);
 
-    static double pass_start_jd = 0;
-    static double pass_end_jd = 0;
+    double pass_start_jd = 2459306.456495;
     double pass_duration_jd = .025; //~90s
-    if( pass_start_jd == 0 ){
-        //fake a pass for testing purposes
-        pass_start_jd = UT + .035; //give us time to see pre-pass conditions
-        pass_end_jd = pass_start_jd + pass_duration_jd; 
-    }
+    double pass_end_jd = pass_start_jd + pass_duration_jd; 
 
     char * pass_state;
     double mark = pass_start_jd; 
@@ -735,62 +768,76 @@ void _ui_drawMenuSAT()
     }
     int diff = (mark - UT)*3600; //diff is seconds until (+) or since (-) the mark timestamp
 
+
     const char * sat_name = "ISS";
     /*gfx_print(layout.top_pos, sat_name, FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);*/
-    if( abs(diff) > 30 ){ 
+    if( diff > 60 || diff < -60 ){ 
         //if we're too far before or after the mark time, it
         //makes more sense to show something else rather than, say, 12387123 seconds
         //therefore print the time of the mark time
-        int mark_h = mark;
-        int mark_m = (mark - mark_h)*60 ;
+        int mark_h = 0;
+        int mark_m = 0;
         snprintf(sbuf, 25, "%s %s %02d:%02d", sat_name, pass_state, mark_h, mark_m);
-        gfx_print(layout.line3_pos, sbuf, FONT_SIZE_8PT,
-                TEXT_ALIGN_CENTER, color_white);
+        /*gfx_print(layout.line3_pos, sbuf, FONT_SIZE_8PT,*/
+                /*TEXT_ALIGN_CENTER, color_white);*/
     } else {
         //will look like these examples:
         //"AOS 30s" meaning it'll come over the horizon in 30s
         //or "LOS 90s" meaning it's in your sky now and will be back over the horizon in 90s
         //or "LOS -30s" meaning it went over the horizon 30 seconds ago
         snprintf(sbuf, 25, "%s %s %ds", sat_name, pass_state, diff);
-        gfx_print(layout.line3_pos, sbuf, FONT_SIZE_8PT,
-                TEXT_ALIGN_CENTER, color_white);
+        /*gfx_print(layout.line3_pos, sbuf, FONT_SIZE_8PT,*/
+                /*TEXT_ALIGN_CENTER, color_white);*/
     }
+    /*snprintf(sbuf, 25, "diff %d", diff);*/
+    /*gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);*/
 
 
-
-    /*double elev = 13.2;*/
-    /*double az = 276.3;*/
-    double doppler_khz = 5.2;
-
-    snprintf(sbuf, 25, "AZ %3.1f", az);
+    snprintf(sbuf, 25, "AZ %.1f", az);
     gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
-    snprintf(sbuf, 25, "EL %3.1f", elev);
+    snprintf(sbuf, 25, "EL %.1f", elev);
     gfx_print(layout.line2_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
-    char sign = doppler_khz>=0? '+':'-';
-    snprintf(sbuf, 25, "%c%.1fk DOP", sign, doppler_khz);
-    /*gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);*/
-
-    gfx_print(layout.line2_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
-
+    snprintf(sbuf, 25, "%.1fk DOP", ((float)doppler_offset)/1000);
+    gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
 
     snprintf(sbuf, 25, "%02d:%02d:%02d", last_state.time.hour, last_state.time.minute, last_state.time.second);
     gfx_print(layout.top_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
 
 
-    _ui_drawMainBackground();
     uint16_t bat_width = SCREEN_WIDTH / 9;
     uint16_t bat_height = layout.top_h - (layout.status_v_pad * 2);
     point_t bat_pos = {SCREEN_WIDTH - bat_width - layout.horizontal_pad,
                        layout.status_v_pad};
     gfx_drawBattery(bat_pos, bat_width, bat_height, last_state.charge);
-    _ui_drawBottom();
 
 
+    float rssi = last_state.rssi;
+    float squelch = last_state.sqlLevel / 16.0f;
+    point_t smeter_pos = { layout.horizontal_pad,
+                           layout.bottom_pos.y +
+                           layout.status_v_pad +
+                           layout.text_v_offset -
+                           layout.bottom_h };
+    /*drawSmeter causes a crash!  don't know why*/
+    /*char x[5];*/
+    /*x[0] = 1;*/
+    /*x[1] = 2;*/
+    /*x[2] = x[0] + x[1];*/
+    /*for( int i = 3; i < 4; i++ ){*/
+      /*x[i] = i + x[i-1];*/
+    /*}*/
+    /*x[4] = 0;*/
+    /*puts(x);*/
+    /*puts("TEST TEST TEST\n\n");*/
+    /*snprintf(sbuf, 25, "%d %d %d %d\r\n", x[0], x[1], x[2], x[4]);*/
+    /*gfx_drawSmeter(smeter_pos,*/
+                   /*SCREEN_WIDTH - 2 * layout.horizontal_pad,*/
+                   /*layout.bottom_h - 1,*/
+                   /*rssi,*/
+                   /*squelch,*/
+                   /*color_white);*/
 
-
-
-
-
+    return;
 }
 #endif
 

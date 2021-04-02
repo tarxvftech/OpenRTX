@@ -884,7 +884,7 @@ void ui_updateFSM(event_t event, bool *sync_rtx)
                         case M_SAT: 
                             //can be broken out of GPS-only if:
                             // UI for location entry (e.g. FN41sq)
-                            // only useful if time is still accurate
+                            // only useful if time is still accurate, which is harder without gps
                             state.ui_screen = MENU_SAT;
                             break;
 
