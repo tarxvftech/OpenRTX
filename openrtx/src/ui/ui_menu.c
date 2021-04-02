@@ -649,6 +649,7 @@ void _ui_drawMenuGPS()
 }
 void _ui_drawMenuSAT()
 {
+    
     char sbuf[25] = { 0 };
     gfx_clearScreen();
 
@@ -704,10 +705,12 @@ void _ui_drawMenuSAT()
     double lonr = lon*PI/180; //so r for radians
     double ra = 0;
     double dec = 0;
+
     double dist = 0;
     double ra2 = 0;
     double dec2 = 0;
     double dist2 = 0;
+
     double time_offset = 5;
     double toff_jd = time_offset/(24*60*60);
     calcSat( tle, jd, latr, lonr, alt, &ra, &dec, &dist);
@@ -804,6 +807,7 @@ void _ui_drawMenuSAT()
     gfx_print(layout.top_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
 
 
+    _ui_drawMainBackground(); //causes a crash on entering this menu
     uint16_t bat_width = SCREEN_WIDTH / 9;
     uint16_t bat_height = layout.top_h - (layout.status_v_pad * 2);
     point_t bat_pos = {SCREEN_WIDTH - bat_width - layout.horizontal_pad,
@@ -811,31 +815,7 @@ void _ui_drawMenuSAT()
     gfx_drawBattery(bat_pos, bat_width, bat_height, last_state.charge);
 
 
-    float rssi = last_state.rssi;
-    float squelch = last_state.sqlLevel / 16.0f;
-    point_t smeter_pos = { layout.horizontal_pad,
-                           layout.bottom_pos.y +
-                           layout.status_v_pad +
-                           layout.text_v_offset -
-                           layout.bottom_h };
-    /*drawSmeter causes a crash!  don't know why*/
-    /*char x[5];*/
-    /*x[0] = 1;*/
-    /*x[1] = 2;*/
-    /*x[2] = x[0] + x[1];*/
-    /*for( int i = 3; i < 4; i++ ){*/
-      /*x[i] = i + x[i-1];*/
-    /*}*/
-    /*x[4] = 0;*/
-    /*puts(x);*/
-    /*puts("TEST TEST TEST\n\n");*/
-    /*snprintf(sbuf, 25, "%d %d %d %d\r\n", x[0], x[1], x[2], x[4]);*/
-    /*gfx_drawSmeter(smeter_pos,*/
-                   /*SCREEN_WIDTH - 2 * layout.horizontal_pad,*/
-                   /*layout.bottom_h - 1,*/
-                   /*rssi,*/
-                   /*squelch,*/
-                   /*color_white);*/
+    _ui_drawBottom();
 
     return;
 }
