@@ -33,6 +33,8 @@
 #include <ui.h>
 #include <string.h>
 
+extern const rtxStatus_t rtxStatus;
+
 void _ui_drawMainBackground()
 {
     // Print top bar line of hline_h pixel height
@@ -45,6 +47,7 @@ void _ui_drawMainTop()
 {
 #ifdef HAS_RTC
     // Print clock on top bar
+    color_t red = {0xff,0x00,0x00, 0xff};
     char clock_buf[9] = "";
     snprintf(clock_buf, sizeof(clock_buf), "%02d:%02d:%02d", last_state.time.hour,
              last_state.time.minute, last_state.time.second);
@@ -59,19 +62,60 @@ void _ui_drawMainTop()
                        layout.status_v_pad};
     gfx_drawBattery(bat_pos, bat_width, bat_height, last_state.charge);
 
+    /*char bat[6] = {0};*/
+    /*snprintf(bat, 6, "%.1fv", last_state.charge);*/
+    /*printf("bat %f\r\n", last_state.charge);*/
+    /*point_t bat_txt_pos = {SCREEN_WIDTH-layout.horizontal_pad-10, 12};*/
+    /*gfx_print(bat_txt_pos, bat, FONT_SIZE_5PT, TEXT_ALIGN_RIGHT, red);*/
+
     // Print radio mode on top bar
     char mode[4] = "";
     switch(last_state.channel.mode)
     {
         case FM:
-        strcpy(mode, "FM");
-        break;
+            strcpy(mode, "FM");
+            break;
         case DMR:
-        strcpy(mode, "DMR");
-        break;
+            strcpy(mode, "DMR");
+            break;
     }
-    gfx_print(layout.top_pos, mode, layout.top_font, TEXT_ALIGN_LEFT,
-              color_white);
+    gfx_print(layout.top_pos, mode, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+
+    int left_offset = 12;
+    int right_offset = 40;
+    int top_line_height = 7;
+    point_t top0 = {layout.top_pos.x, top_line_height};
+    point_t top1 = {layout.horizontal_pad+left_offset, top_line_height};
+    point_t top2 = {layout.horizontal_pad+left_offset, 2*top_line_height};
+    point_t top3 = {SCREEN_WIDTH-layout.horizontal_pad-right_offset, top_line_height};
+    point_t top4 = {SCREEN_WIDTH-layout.horizontal_pad-right_offset, 2*top_line_height};
+
+    /*float power;                [>*< Transmission power, in watt              <]*/
+    /*freq_t rx_frequency;        [>*< RX Frequency, in Hz                      <]*/
+    /*freq_t tx_frequency;        [>*< TX Frequency, in Hz                      <]*/
+    /*char name[16];              [>*< Channel name                             <]*/
+    /*union*/
+    /*{*/
+        /*fmInfo_t  fm;           [>*< Information block for FM channels        <]*/
+        /*dmrInfo_t dmr;          [>*< Information block for DMR channels       <]*/
+    /*};*/
+    uint8_t transmitting = rtxStatus.opStatus == TX;
+    char tmp[10] = {0};
+    snprintf(tmp, 10, "%.0fW", last_state.channel.power);
+    gfx_print(top0, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting? red:color_white);
+    snprintf(tmp, 10, "%.4f", ((float)rtxStatus.rxFrequency)/1000000);
+    gfx_print(top1, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_grey:color_white);
+    snprintf(tmp, 10, "%.4f", ((float)rtxStatus.txFrequency)/1000000);
+    gfx_print(top2, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_white:color_grey);
+    if( transmitting && rtxStatus.txToneEn ){
+        gfx_print(top3, "CTCSS", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, red);
+        snprintf(tmp, 10, "%.1f", ((float)rtxStatus.rxTone)/10);
+        gfx_print(top4, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+    } else if( ! transmitting && rtxStatus.rxToneEn ){
+        gfx_print(top3, "CTCSS", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+        snprintf(tmp, 10, "%.1f", ((float)rtxStatus.rxTone)/10);
+        gfx_print(top4, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+    }
 }
 
 void _ui_drawZoneChannel()
