@@ -33,6 +33,8 @@
 #include <interfaces/keyboard.h>
 #include <SDL2/SDL.h>
 
+#include <emulator.h> 
+
 void kbd_init()
 {
 }

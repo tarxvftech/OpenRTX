@@ -30,42 +30,73 @@
 
 
 #include "emulator.h"
+
 #include <pthread.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <interfaces/include/display.h>
 
 radio_state Radio_State = {12, 8.2f, 3, 4, 1, false};
 
-int CLIMenu()
-{
-    int choice = 0;
-    printf("Select the value to change:\n");
-    printf("1 -> RSSI\n");
-    printf("2 -> Vbat\n");
-    printf("3 -> Mic Level\n");
-    printf("4 -> Volume Level\n");
-    printf("5 -> Channel selector\n");
-    printf("6 -> Toggle PTT\n");
-    printf("7 -> Print current state\n");
-    printf("8 -> Exit\n");
-    printf("> ");
-    do
-    {
-        scanf("%d", &choice);
-    } while (choice < 1 || choice > 8);
-    printf("\033[1;1H\033[2J");
-    return choice;
+
+typedef int (*_climenu_fn)(void* self, int argc, char ** argv );
+typedef struct {
+    char * name;
+    char * description;
+    void * var;
+    _climenu_fn fn;
+} _climenu_option;
+
+int template(void * _self, int _argc, char ** _argv ){
+    _climenu_option * self = (_climenu_option*) _self;
+    printf( "%s\n\t%s\n" , self->name, self->description);
+
+    for( int i = 0; i < _argc; i++ ){
+        if( _argv[i] != NULL ){
+            printf("\tArgs:\t%s\n", _argv[i]);
+        }
+    }
+    return 0; // continue
+}
+int pressKey(void * _self, int _argc, char ** _argv ){
+    _climenu_option * self = (_climenu_option*) _self;
+    printf("Press Keys: [\n");
+    for( int i = 0; i < _argc; i++ ){
+        if( _argv[i] != NULL ){
+            printf("\t%s, \n", _argv[i]);
+        }
+    }
+    printf("\t]\n");
+    return 0; // continue
+}
+int screenshot(void * _self, int _argc, char ** _argv ){
+    _climenu_option * self = (_climenu_option*) _self;
+    uint16_t * fb = (uint16_t*) display_getFrameBuffer();
+    return 0; // continue
 }
 
-void updateValue(float *curr_value)
-{
-    printf("Current value: %f\n", *curr_value);
-    printf("New value: \n");
-    scanf("%f", curr_value);
-}
+int setFloat(void * _self, int _argc, char ** _argv ){
+    _climenu_option * self = (_climenu_option*) _self;
+    if( _argc <= 0 || _argv[0] == NULL ){
+        printf("%s is %f\n", self->name,  *(float*)(self->var));
+    } else {
+        sscanf(_argv[0], "%f", (float *)self->var);
+        printf("%s is %f\n", self->name,  *(float*)(self->var));
+    }
+    return 0; // continue
 
-void printState()
+}
+int toggleVariable(void * _self, int _argc, char ** _argv ){
+    _climenu_option * self = (_climenu_option*) _self;
+    *(int*)self->var = ! *(int*)self->var; //yeah, maybe this got a little out of hand
+    return 0; // continue
+
+}
+int shell_quit(void * _self, int _argc, char ** _argv ){
+    return -1; //normal quit
+}
+int printState(void * _self, int _argc, char **_argv)
 {
     printf("\nCurrent state\n");
     printf("RSSI   : %f\n", Radio_State.RSSI);
@@ -74,42 +105,106 @@ void printState()
     printf("Volume : %f\n", Radio_State.volumeLevel);
     printf("Channel: %f\n", Radio_State.chSelector);
     printf("PTT    : %s\n\n", Radio_State.PttStatus ? "true" : "false");
-
+    return 0;
 }
 
+int shell_help(void * _self, int _argc, void ** _argv );
+_climenu_option _options[] = {
+    {"rssi",   "set rssi",             (void*)&Radio_State.RSSI,       setFloat },
+    {"vbat",   "set vbat",             (void*)&Radio_State.Vbat,       setFloat },
+    {"mic",    "set miclevel",         (void*)&Radio_State.micLevel,   setFloat },
+    {"volume", "set volume",           (void*)&Radio_State.volumeLevel,setFloat },
+    {"channel","set channel",          (void*)&Radio_State.chSelector, setFloat },
+    {"ptt",    "toggle ptt",           (void*)&Radio_State.PttStatus,  toggleVariable },
+    {"key",    "press keys (keyname)+",NULL,                           pressKey },
+    {"screenshot","press keys (keyname)+",NULL,                        screenshot },
+    {"show",   "show current state",   NULL, printState },
+    {"help",   "print a full help",    NULL, shell_help },
+    {"quit",   "quit", 'q',            NULL, shell_quit },
+};
+int num_options = (sizeof( _options )/ sizeof(_climenu_option));
+int shell_help(void * _self, int _argc, void ** _argv ){
+    printf("OpenRTX emulator shell\n");
+    printf("name\tdescription\n");
+    printf("____\t___________\n");
+    for( int i = 0; i < num_options; i++ ){
+        _climenu_option * o = &_options[i];
+        printf("%s -> %s\n", o->name, o->description);
+    }
+    return 0; //normal quit
+}
+
+
+_climenu_option * findMenuOption(char * tok){
+    for( int i = 0; i < num_options; i++ ){
+        _climenu_option * o = &_options[i];
+        if( strncmp(tok, o->name, strlen(tok)) == 0 ){ 
+            //allows for shortcuts like just r instead of rssi
+            //priority for conflicts (like if there's "rssi" and "rebuild" or some other name collision for a shortcut)
+            //is set by ordering in the _options array
+            return o;
+        }
+    }
+    return NULL;
+}
+void striplastnewline(char * token){
+    if( token == NULL ){
+        return;
+    }
+    if( token[ strlen(token)-1 ] == '\n' ){
+        token[ strlen(token)-1 ] = 0; //cut off the last character, a \n because user hit enter key
+    }
+}
+int process_line(char * line){
+    char * token = strtok( line, " ");
+    striplastnewline(token);
+    _climenu_option * o = findMenuOption(token);
+    char * args[12] = {NULL};
+    int i = 0;
+    for( i = 0; i < 12; i++ ){
+        //immediately strtok again since first is a command rest are args
+        token = strtok(NULL, " ");
+        if( token == NULL ){
+            break;
+        }
+        striplastnewline(token);
+        args[i] = token;
+    }
+    if( token != NULL ){
+        printf("\nGot too many arguments, args truncated \n");
+    }
+    if( o != NULL ){
+        return o->fn(o, i, args);
+    } else {
+        return 1; //not understood
+    }
+}
 void *startCLIMenu()
 {
-    int choice;
-    do
-    {
-        choice = CLIMenu();
-        switch (choice)
-        {
-            case VAL_RSSI:
-                updateValue(&Radio_State.RSSI);
-                break;
-            case VAL_BAT:
-                updateValue(&Radio_State.Vbat);
-                break;
-            case VAL_MIC:
-                updateValue(&Radio_State.micLevel);
-                break;
-            case VAL_VOL:
-                updateValue(&Radio_State.volumeLevel);
-                break;
-            case VAL_CH:
-                updateValue(&Radio_State.chSelector);
-                break;
-            case VAL_PTT:
-                Radio_State.PttStatus = Radio_State.PttStatus ? false : true;
-                break;
-            case PRINT_STATE:
-                printState();
-                break;
-            default:
-                continue;
+    shell_help(NULL,0,NULL);
+    printf("> ");
+    char shellbuf[256] = {0};
+    int ret = 0;
+    do {
+        fgets(shellbuf, 255, stdin);
+        if( strlen(shellbuf) > 1 ){ //1 is just a newline
+            ret = process_line(shellbuf);
+        } else {
+            ret = 0;
         }
-    } while (choice != EXIT);
+        switch(ret){
+            default:
+                break;
+            case 1:
+                printf("?\n(type h or help for help)\n");
+                ret = 0; //i'd rather just fall through, but the compiler warns. blech.
+                printf("\n>");
+                break;
+            case 0:
+                printf("\n>");
+                break;
+        }
+    } while ( ret == 0 );
     printf("73\n");
     exit(0);
 }
