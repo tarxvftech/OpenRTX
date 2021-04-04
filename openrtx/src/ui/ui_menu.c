@@ -436,7 +436,6 @@ void _ui_drawMenuSATpass(){
     gfx_print(layout.line2_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
 
 
-
     snprintf(sbuf, 25, "AZ %.1f", az);
     gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
     snprintf(sbuf, 25, "EL %.1f", elev);
@@ -448,10 +447,58 @@ void _ui_drawMenuSATpass(){
 }
 void _ui_drawMenuSAT()
 {
+    /*gfx_clearScreen();*/
+    /*_ui_drawMainBackground(); */
+    /*_ui_drawMainTop();*/
+    /*_ui_drawBottom();*/
+    
+    char sbuf[25] = { 0 }; //general purpose snprintf buffer
+    char gridsquare[7] = {0}; //we want to use this as a c-style string so that extra byte stays zero
+
+    float lat;
+    float lon;
+    /*float alt;*/
+    double az = 0;
+    double elev = 0;
+    int doppler_offset = 0; //i want a auto_SI_prefix fn again
+
     gfx_clearScreen();
+    //I've been using this to keep an eye on alignment, but remove later
+    gfx_drawVLine(SCREEN_WIDTH/2, 1, color_grey);
     _ui_drawMainBackground(); 
     _ui_drawMainTop();
     _ui_drawBottom();
+
+    //get a position. This will be used all over the place.
+    if( ! last_state.settings.gps_enabled || last_state.gps_data.fix_quality == 0 ){
+      //fix_type is 1 sometimes when it shouldn't be, have to use fix_quality 
+      
+      //TODO: need a way to show gps enabled/disable, gps fix/nofix
+      /*gfx_print(layout.line3_pos, "no gps fix", FONT_SIZE_12PT, TEXT_ALIGN_CENTER, color_white);*/
+
+      //TODO pull from manual position data rather than hardcoding
+      lat =  41.70011;
+      lon = -70.29947;
+      /*alt = 0; //msl geoid meters*/
+    } else {
+      lat = last_state.gps_data.latitude;
+      lon = last_state.gps_data.longitude;
+      /*alt = last_state.gps_data.altitude; //msl geoid meters*/
+    }
+    
+    //draw gridsquare text
+    lat_lon_to_maidenhead(lat, lon, gridsquare, 3); //precision=3 here means 6 characters like FN41uq
+    gfx_print(layout.line2_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
+
+
+    snprintf(sbuf, 25, "AZ %.1f", az);
+    gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
+    snprintf(sbuf, 25, "EL %.1f", elev);
+    gfx_print(layout.line2_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
+
+    snprintf(sbuf, 25, "%.1fk DOP", ((float)doppler_offset)/1000);
+    /*gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);*/
+    gfx_print(layout.line1_pos, sbuf, FONT_SIZE_5PT, TEXT_ALIGN_RIGHT, color_white);
 }
 #endif
 
