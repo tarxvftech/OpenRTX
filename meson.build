@@ -22,7 +22,8 @@ openrtx_src = ['openrtx/src/state.c',
                'openrtx/src/calibUtils.c',
                'openrtx/src/queue.c',
                'openrtx/src/rtx.c',
-               'openrtx/src/gps.c']
+               'openrtx/src/gps.c',
+               'openrtx/src/satellite.c']
 
 
 ## Replace main executable with platform test

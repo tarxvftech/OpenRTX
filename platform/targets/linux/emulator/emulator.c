@@ -225,7 +225,24 @@ int screenshot(__attribute__((unused)) void * _self, int _argc, char ** _argv ){
     return screenshot_display(filename) == 0 ? SH_CONTINUE : SH_ERR; 
     //screenshot_display returns 0 if ok, which is same as SH_CONTINUE
 }
-
+/*
+int record_start(__attribute__((unused)) void * _self, int _argc, char ** _argv ){
+    char * filename = "screen.mkv";
+    if( _argc && _argv[0] != NULL ){
+        filename = _argv[0];
+    }
+    //id="xwininfo -name 'OpenRTX' | grep id: |cut -d ' ' -f 4";
+    //system("ffmpeg -f x11grab -show_region 1 -region_border 10 -window_id 0x2600016 -i :0.0 out.mkv");
+    //https://stackoverflow.com/questions/14764873/how-do-i-detect-when-the-contents-of-an-x11-window-have-changed
+    return SH_ERR;
+}
+int record_stop(
+        __attribute__((unused)) void * _self, 
+        __attribute__((unused)) int _argc, 
+        __attribute__((unused)) char ** _argv ){
+    return SH_ERR;
+}
+*/
 int setFloat(void * _self, int _argc, char ** _argv ){
     _climenu_option * self = (_climenu_option*) _self;
 
@@ -290,27 +307,34 @@ int shell_help(void * _self, int _argc, char ** _argv );
 
 _climenu_option _options[] = {
 /* name/shortcut   description            var reference, if available    method to call */
-    {"rssi",      "set rssi",             (void*)&Radio_State.RSSI,       setFloat },
-    {"vbat",      "set vbat",             (void*)&Radio_State.Vbat,       setFloat },
-    {"mic",       "set miclevel",         (void*)&Radio_State.micLevel,   setFloat },
-    {"volume",    "set volume",           (void*)&Radio_State.volumeLevel,setFloat },
-    {"channel",   "set channel",          (void*)&Radio_State.chSelector, setFloat },
-    {"ptt",       "toggle ptt",           (void*)&Radio_State.PttStatus,  toggleVariable },
-    {"key",       "press keys in sequence (e.g. 'key ENTER DOWN ENTER' will descend through two menus)",
-                                           NULL,                          pressKey },
-    {"keycombo",  "press a bunch of keys simultaneously ",
-                                           NULL,                          pressMultiKeys },
-    {"show",      "show current radio state (ptt, rssi, etc)",    NULL,                          printState },
+    {"rssi",      "Set rssi",             (void*)&Radio_State.RSSI,       setFloat },
+    {"vbat",      "Set vbat",             (void*)&Radio_State.Vbat,       setFloat },
+    {"mic",       "Set miclevel",         (void*)&Radio_State.micLevel,   setFloat },
+    {"volume",    "Set volume",           (void*)&Radio_State.volumeLevel,setFloat },
+    {"channel",   "Set channel",          (void*)&Radio_State.chSelector, setFloat },
+    {"ptt",       "Toggle PTT",           (void*)&Radio_State.PttStatus,  toggleVariable },
+    {"key",       "Press keys in sequence (e.g. 'key ENTER DOWN ENTER' will descend through two menus)",
+                                              NULL,   pressKey },
+    {"keycombo",  "Press a bunch of keys simultaneously ",
+                                              NULL,   pressMultiKeys },
+    {"show",      "Show current radio state (ptt, rssi, etc)",    
+                                              NULL,   printState },
 
-    {"screenshot","save screenshot to first arg or screenshot.bmp if none given",
-                                           NULL,                          screenshot },
-    {"sleep",     "wait some number of ms",NULL, shell_sleep },
-    {"help",      "print a full help",     NULL, shell_help },
-    {"nop",       "do nothing, useful for comments",     
-                                           NULL, shell_nop },
-    {"ready",     "Wait until ready. Currently supports keyboard, so will wait until all keyboard events are processed.",     
-                                           NULL, shell_ready },
-    {"quit",      "quit",                  NULL, shell_quit },
+    {"screenshot","[screenshot.bmp] Save screenshot to first arg or screenshot.bmp if none given",
+                                              NULL,   screenshot },
+    /*{"record_start", "[screen.mkv] Automatically save a video of the remaining session (or until record_stop is called)",*/
+                                              /*NULL,   record_start },*/
+    /*{"record_stop",  "Stop the running recording, or no-op if none started",*/
+                                              /*NULL,   record_stop },*/
+    {"sleep",     "Wait some number of ms",   NULL,   shell_sleep },
+    {"help",      "Print this help",          NULL,   shell_help },
+    {"nop",       "Do nothing (useful for comments)",     
+                                              NULL,   shell_nop },
+    /*{"ready",     */
+        /*"Wait until ready. Currently supports keyboard, so will wait until all keyboard events are processed,"*/
+            /*"but is already implied by key and keycombo so there's not much direct use for it right now",*/
+                                              /*NULL,   shell_ready },*/
+    {"quit",      "Quit, close the emulator", NULL,   shell_quit },
 };
 int num_options = (sizeof( _options )/ sizeof(_climenu_option));
 
@@ -387,7 +411,6 @@ void *startCLIMenu()
     char * histfile = ".emulatorsh_history";
     shell_help(NULL,0,NULL);
     /*printf("\n> ");*/
-    char shellbuf[256] = {0};
     int ret = SH_CONTINUE;
     using_history();
     read_history(histfile);

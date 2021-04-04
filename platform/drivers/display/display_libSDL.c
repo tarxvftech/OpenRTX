@@ -209,7 +209,8 @@ void display_init()
                                   SDL_WINDOWPOS_UNDEFINED,
                                   SDL_WINDOWPOS_UNDEFINED,
                                   SCREEN_WIDTH * 3, SCREEN_HEIGHT * 3,
-                                  SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+                                  SDL_WINDOW_SHOWN ); 
+        //removed RESIZABLE flag so automatic screen recording is a little easier
 
         renderer = SDL_CreateRenderer(window, -1, 0);
         SDL_RenderSetLogicalSize(renderer, SCREEN_WIDTH, SCREEN_HEIGHT);
