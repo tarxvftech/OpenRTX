@@ -772,3 +772,62 @@ void gfx_drawGPScompass(point_t start,
     point_t n_pos = {start.x + radius - 3, start.y + 7};
     gfx_print(n_pos, FONT_SIZE_6PT, TEXT_ALIGN_LEFT, white, "N");
 }
+void gfx_drawPolarAzElPlot(point_t center, int radius, color_t color){
+    int r1 = radius;
+    int r2 = r1/2; // 45 degrees
+    point_t az_top = {center.x-1, center.y-r1+6};
+    point_t az_right = {center.x+r1-5, center.y+2};
+    point_t az_left = {center.x-r1+3, center.y+2};
+    point_t az_bot = {center.x-1, center.y+r1};
+    gfx_drawCircle(center, r1, color);
+    gfx_drawCircle(center, r2, color);
+    gfx_print(az_top,  "N", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color);
+    gfx_print(az_right,"E", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color);
+    gfx_print(az_left, "W", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color);
+    gfx_print(az_bot,  "S", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color);
+}
+void gfx_drawPolar( point_t center, int radius, float az, float el, int character, color_t color){
+    point_t char_offset = {0,0};
+    char printbuf[2]={0};
+    if( character == '+' ){
+        char_offset.x = -4;
+        char_offset.y = 2;
+    } 
+    point_t relsatpos = azel_deg_to_xy( az, el, radius);
+    point_t finalpos = offset_point(center, 2, char_offset, relsatpos );
+    if( character == 0 ){
+        gfx_setPixel(finalpos, color);
+    } else {
+        snprintf(printbuf, 2, "%c", character);
+        gfx_print(finalpos,  printbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color);
+    }
+}
+point_t azel_deg_to_xy( float az_deg, float elev_deg, float radius){
+    /*printf("azel: %.2f %.2f\n", az_deg, elev_deg);*/
+    point_t ret = {0,0};
+    float az_r = (az_deg -90) * PI/180; 
+    float r0 = (90-elev_deg)/90*radius;
+    int spx = r0 * cos(az_r);
+    int spy = r0 * sin(az_r);
+    ret.x = spx;
+    ret.y = spy;
+    return ret;
+}
+void test_azel_deg_to_xy(){
+    point_t in_azel = {90,0}; //so east and at max deflection
+    int radius = 10;
+    point_t out_xy = azel_deg_to_xy( in_azel.x, in_azel.y, radius);
+    if( out_xy.x != 10 || out_xy.y != 0 ){
+        printf("Error! Got %d %d\n", out_xy.x, out_xy.y);
+    }
+}
+point_t offset_point( point_t center, int num, ... ){
+    va_list args;
+    va_start(args, num);
+    for( int i = 0; i < num; i++ ){
+        point_t offset = va_arg(args, point_t);
+        center.x += offset.x;
+        center.y += offset.y;
+    }
+    return center;
+}
