@@ -30,6 +30,9 @@
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
 
+#define PI  3.141592653589793238462643383279
+
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <interfaces/display.h>
@@ -293,5 +296,11 @@ void gfx_drawGPSgraph(point_t start, uint16_t width, uint16_t height, sat_t *sat
  * @param active: whether the needle is to be drawn or not
  */
 void gfx_drawGPScompass(point_t start, uint16_t radius, float deg, bool active);
+
+
+void gfx_drawPolarAzElPlot(point_t center, int radius, color_t color);
+void gfx_drawPolar( point_t center, int radius, float az, float el, int character, color_t color);
+point_t azel_deg_to_xy( float az_deg, float elev_deg, float radius);
+point_t offset_point( point_t center, int num, ... );
 
 #endif /* GRAPHICS_H */
