@@ -47,7 +47,7 @@ void _ui_drawMainTop()
 {
 #ifdef HAS_RTC
     // Print clock on top bar
-    color_t red = {0xff,0x00,0x00, 0xff};
+    color_t color_red = {0xff,0x00,0x00, 0xff};
     char clock_buf[9] = "";
     snprintf(clock_buf, sizeof(clock_buf), "%02d:%02d:%02d", last_state.time.hour,
              last_state.time.minute, last_state.time.second);
@@ -66,7 +66,7 @@ void _ui_drawMainTop()
     /*snprintf(bat, 6, "%.1fv", last_state.charge);*/
     /*printf("bat %f\r\n", last_state.charge);*/
     /*point_t bat_txt_pos = {SCREEN_WIDTH-layout.horizontal_pad-10, 12};*/
-    /*gfx_print(bat_txt_pos, bat, FONT_SIZE_5PT, TEXT_ALIGN_RIGHT, red);*/
+    /*gfx_print(bat_txt_pos, bat, FONT_SIZE_5PT, TEXT_ALIGN_RIGHT, color_red);*/
 
     // Print radio mode on top bar
     char mode[4] = "";
@@ -102,13 +102,13 @@ void _ui_drawMainTop()
     uint8_t transmitting = rtxStatus.opStatus == TX;
     char tmp[10] = {0};
     snprintf(tmp, 10, "%.0fW", last_state.channel.power);
-    gfx_print(top0, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting? red:color_white);
+    gfx_print(top0, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting? color_red:color_white);
     snprintf(tmp, 10, "%.4f", ((float)rtxStatus.rxFrequency)/1000000);
     gfx_print(top1, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_grey:color_white);
     snprintf(tmp, 10, "%.4f", ((float)rtxStatus.txFrequency)/1000000);
     gfx_print(top2, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_white:color_grey);
     if( transmitting && rtxStatus.txToneEn ){
-        gfx_print(top3, "CTCSS", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, red);
+        gfx_print(top3, "CTCSS", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_red);
         snprintf(tmp, 10, "%.1f", ((float)rtxStatus.rxTone)/10);
         gfx_print(top4, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
     } else if( ! transmitting && rtxStatus.rxToneEn ){

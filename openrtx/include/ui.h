@@ -56,7 +56,10 @@ enum uiScreen
     MENU_CONTACTS,
     MENU_SMS,
     MENU_GPS,
-    MENU_SAT,
+    MENU_SAT_CHOOSE,
+    MENU_SAT_TRACK,
+    MENU_SAT_PASS,
+    MENU_SAT_PREDICT,
     MENU_SETTINGS,
     MENU_INFO,
     MENU_ABOUT,
@@ -178,6 +181,7 @@ typedef struct ui_state_t
 #endif
     // Which state to return to when we exit menu
     uint8_t last_main_state;
+    keyboard_t keys;
 }
 ui_state_t;
 
