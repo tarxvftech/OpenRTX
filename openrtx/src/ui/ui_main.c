@@ -99,13 +99,13 @@ void _ui_drawMainTop()
     uint8_t transmitting = rtxStatus.opStatus == TX;
     char tmp[10] = {0};
     snprintf(tmp, 10, "%.0fW", last_state.channel.power);
-    gfx_print(top0, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting? red:color_white);
+    gfx_print(top0, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting? color_red:color_white);
     snprintf(tmp, 10, "%.4f", ((float)rtxStatus.rxFrequency)/1000000);
     gfx_print(top1, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_grey:color_white);
     snprintf(tmp, 10, "%.4f", ((float)rtxStatus.txFrequency)/1000000);
     gfx_print(top2, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_white:color_grey);
     if( transmitting && rtxStatus.txToneEn ){
-        gfx_print(top3, "CTCSS", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, red);
+        gfx_print(top3, "CTCSS", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_red);
         snprintf(tmp, 10, "%.1f", ((float)rtxStatus.rxTone)/10);
         gfx_print(top4, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
     } else if( ! transmitting && rtxStatus.rxToneEn ){

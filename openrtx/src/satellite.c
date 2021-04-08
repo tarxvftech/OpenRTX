@@ -2,11 +2,16 @@
 #include <stdlib.h>
 
 #include <math.h>
+#include <string.h>
 
 #include <observe.h>
 
 #include <ui.h>
 #include <satellite.h>
+#include <watdefs.h>
+#include <afuncs.h>
+
+
 double curTime_to_julian_day(curTime_t t)
 {
     //expects t to be after year 2000
@@ -20,7 +25,7 @@ double curTime_to_julian_day(curTime_t t)
     /*printf("%04d/%02d/%02d  %02d:%02d:%02d\n", Y,M,D,h,m,s);*/
 
     int Z = Y + (M - 14) / 12; //relies on int truncation
-    const short Fvec[] = {306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275 };
+    const short Fvec[] = {306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275};
     short F = Fvec[M - 1];
 
     //! note difference between floor and int truncation
@@ -90,7 +95,7 @@ double local_sidereal_degrees(double j2k, double longitude )
     /*printf("UT: %.6f \n", UT);*/
     double degrees_rotation_per_day = .985647;
     double gmst_j2k_correction = 100.46;
-    double lond = longitude * 180 / PI;
+    double lond = DEG(longitude);
     double local_sidereal_time = gmst_j2k_correction + degrees_rotation_per_day * j2k + lond + 15 * UT;
     local_sidereal_time = wrap(local_sidereal_time, 360);
     return local_sidereal_time;
@@ -107,36 +112,76 @@ void ra_dec_to_az_alt(double jd,
                       double ra, double dec,
                       double * az_out, double * alt_out)
 {
-    //replace with lunar alt_az.cpp functions
+    if( 1 ){
+        double j2k = jd_to_j2k(jd);
+        double lst = local_sidereal_degrees(j2k, longitude); //✔
+        /*printf("lst %.4f\n", lst);*/
+        double ha = RAD(hour_angle_degrees(lst, DEG(ra) ));
 
-    double j2k = jd_to_j2k(jd);
-    double lst = local_sidereal_degrees(j2k, longitude); //✔
-    /*printf("lst %.4f\n", lst);*/
-    double ha = hour_angle_degrees(lst, ra * 180 / PI) * PI / 180;
+        latitude = latitude;
 
-    latitude = latitude;
+        double A = cos(ha) * cos(dec) * cos(latitude) - sin(dec) * sin(latitude);
+        double B = sin(ha) * cos(dec);
+        double C = cos(ha) * cos(dec) * sin(latitude) + sin(dec) * cos(latitude);
+        double az = atan2(B, A) + PI;
+        double alt = asin(C);
 
-    double A = cos(ha) * cos(dec) * cos(latitude) - sin(dec) * sin(latitude);
-    double B = sin(ha) * cos(dec);
-    double C = cos(ha) * cos(dec) * sin(latitude) + sin(dec) * cos(latitude);
-    double az = atan2(B, A) + PI;
-    double alt = asin(C);
+        az = wrap(az, 2 * PI);
 
-    az = wrap(az, 2 * PI);
-
-    *az_out = az;
-    *alt_out = alt;
-    return;
+        *az_out = az;
+        *alt_out = alt;
+        return;
+    } else {
+        //replace with lunar alt_az.cpp functions
+        DPT radec = {ra, dec};
+        DPT altaz = {0};
+        DPT latlon = {latitude, longitude};
+        full_ra_dec_to_alt_az(
+                &radec, // DPT *ra_dec,
+                &altaz, //DPT *alt_az,
+                NULL, //DPT *loc_epoch, 
+                &latlon, //DPT *latlon,
+                jd, //double jd_utc, 
+                NULL //double *hr_ang
+                );
+        *alt_out = altaz.x;
+        *az_out = altaz.y;
+    }
 }
 
 
-int calcSat( tle_t tle, double time_jd,
-             double lat, double lon, double height_meters,
-             double * out_ra,
-             double * out_dec,
-             double * out_dist
-           )
+topo_pos_t getObserverPosition(){
+    topo_pos_t obs;
+    if( ! last_state.settings.gps_enabled || last_state.gps_data.fix_quality == 0 ){
+        //fix_type is 1 sometimes when it shouldn't be, have to use fix_quality
+
+        //TODO: need a way to show gps enabled/disable, gps fix/nofix
+        //gfx_print(layout.line3_pos, "no gps fix", FONT_SIZE_12PT, TEXT_ALIGN_CENTER, color_white);
+
+        //TODO pull from manual position data rather than hardcoding
+        obs.lat =  41.70011;
+        obs.lon = -70.29947;
+        obs.alt = 0; //msl geoid meters
+    } else {
+        obs.lat = last_state.gps_data.latitude;
+        obs.lon = last_state.gps_data.longitude;
+        obs.alt = last_state.gps_data.altitude; //msl geoid meters
+    }
+    return obs;
+}
+sat_calc_t calcSatNow( tle_t tle, state_t last_state ){
+    double jd;
+    topo_pos_t obs = getObserverPosition();
+    jd = curTime_to_julian_day(last_state.time);
+    return calcSat(tle, jd, obs);
+}
+sat_calc_t  calcSat( tle_t tle, double time_jd, topo_pos_t observer_degrees)
 {
+    topo_pos_t obs = { //observer_degrees, but in radians
+        RAD(observer_degrees.lat),
+        RAD(observer_degrees.lon),
+        observer_degrees.alt
+    };
     int is_deep = select_ephemeris( &tle );
     int ephem = 1;       /* default to SGP4 */
     double sat_params[N_SAT_PARAMS], observer_loc[3];
@@ -153,8 +198,8 @@ int calcSat( tle_t tle, double time_jd,
     int err_val = 0;
 
     //remember to put lat and lon in rad by this point
-    earth_lat_alt_to_parallax( lat, height_meters, &rho_cos_phi, &rho_sin_phi);
-    observer_cartesian_coords( time_jd, lon, rho_cos_phi, rho_sin_phi, observer_loc);
+    earth_lat_alt_to_parallax( obs.lat, obs.alt, &rho_cos_phi, &rho_sin_phi);
+    observer_cartesian_coords( time_jd, obs.lon, rho_cos_phi, rho_sin_phi, observer_loc);
     if( is_deep && (ephem == 1 || ephem == 2)) {
         ephem += 2;
     }
@@ -194,66 +239,71 @@ int calcSat( tle_t tle, double time_jd,
     }
     get_satellite_ra_dec_delta( observer_loc, pos, &ra, &dec, &dist_to_satellite);
     epoch_of_date_to_j2000( time_jd, &ra, &dec);
+    double az = 0;
+    double elev = 0;
+    ra_dec_to_az_alt(time_jd, obs.lat, obs.lon, ra, dec, &az, &elev);
     /*printf("POS: %.4f,%.4f,%.4f\n", pos[0], pos[1], pos[2] );*/
     /*printf("VEL: %.4f,%.4f,%.4f\n", vel[0], vel[1], vel[2] );*/
-    *out_ra = ra;
-    *out_dec = dec;
-    *out_dist = dist_to_satellite;
-    return err_val;
+    sat_calc_t ret;
+    ret.az = az;
+    ret.elev = elev;
+    ret.ra = ra;
+    ret.dec = dec;
+    ret.dist = dist_to_satellite;
+    ret.jd = time_jd;
+    ret.satid = tle.norad_number;
+    ret.ok = err_val;
+    return ret;
 }
-int isAboveHorizon( double time_jd, double lat, double lon, double ra, double dec )
-{
-    double az;
-    double alt;
-    ra_dec_to_az_alt(time_jd, lat, lon, ra, dec, &az, &alt);
-    return alt >= 0;
-}
-double nextpass_jd(
+double sat_nextpass(
     //sat in question
     tle_t tle,
     //start time
     double start_jd,
-    //observer location
-    double latd, double lond, double height_meters
+    //how long in decimal days to search from start_jd
+    double search_time_days,
+    //observer location, in degrees latitude and longitude, and altitude in meters
+    topo_pos_t observer
 )
 {
-    //search end time and sampling period from TLE data
-    //determine sampling from TLE parse, which should include orbit period
-    //getting a list of passes involves successive calls to this function
+    //determine sampling from TLE ?
+    //getting a list of passes involves successive calls to this function, incrementing start_jd
 
     double jd = start_jd;
-    double lat = latd * PI / 180;
-    double lon = lond * PI / 180;
-
 
     int aboveHorizonAtJD = 0;
     int i = 0;
-    while( jd < start_jd + .25 ) { //search next N day(s)
-        jd += .000348; //increment by ~30s
-        double ra;
-        double dec;
-        double dist;
-        calcSat( tle, jd, lat, lon, height_meters, &ra, &dec, &dist);
-        aboveHorizonAtJD = isAboveHorizon( jd, lat, lon, ra, dec );
+    double coarse_interval = 30.0 / 86400; //30 seconds in decimal days
+    double fine_interval = 1.0 / 86400; //30 seconds in decimal days
+    //search for when a pass comes over the horizon
+    while( jd < start_jd + search_time_days ) { //search next N day(s)
+        jd += coarse_interval; //increment by ~30s
+        sat_calc_t s = calcSat( tle, jd, observer);
+        aboveHorizonAtJD = s.elev >= 0;
         i++;
         if( aboveHorizonAtJD ) {
+            //we found a pass!
             break;
         }
     }
     while( aboveHorizonAtJD ) {
-        double ra;
-        double dec;
-        double dist;
-        calcSat( tle, jd, lat, lon, height_meters, &ra, &dec, &dist);
-        aboveHorizonAtJD = isAboveHorizon( jd, lat, lon, ra, dec );
+        sat_calc_t s = calcSat( tle, jd, observer);
+        aboveHorizonAtJD = s.elev >= 0;
         i++;
         //could speed this up by bisect bracketing the transition from - to +
         //should also find the end of the pass going + to -
-        jd -= .00010; // <1s
+        jd -= fine_interval; // <1s
     }
-    printf("found in %d iterations\n", i);
     return jd;
 }
+sat_pass_t sat_getpass(){
+}
+sat_getpass_points(sat_pass_t pass, int points, sat_pos_t * out){
+    /*pass.rise.jd;*/
+    /*pass.max.jd;*/
+    /*pass.set.jd;*/
+}
+
 
 
 
@@ -379,7 +429,7 @@ if( jd_offset == 0 ){
 }
 jd = jd + jd_offset;
 for( int i = 0; i < num_points_pass; i++){
-    sat_pos p = pass_azel[i];
+    sat_pos_t p = pass_azel[i];
     if( p.jd <= jd ){
         az = p.az;
         elev = p.elev;
@@ -487,3 +537,162 @@ const char * sat_name = "ISS";
 snprintf(sbuf, 25, "%s %s %.0fs", sat_name, pass_state, diff);
 gfx_print(layout.line3_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
 */
+
+void game_move(game_obj_2d_t * o, unsigned long long td){
+    o->x += (o->spdx)*td/1000;
+    o->y += (o->spdy)*td/1000;
+}
+void game_addvel( game_obj_2d_t * o, float vel, float rot ){
+    float vy = vel * sin(rot);
+    float vx = vel * cos(rot);
+    o->spdx += vx;
+    o->spdy += vy;
+}
+void game_obj_init( game_obj_2d_t * o ){
+    o->x = rand() % SCREEN_WIDTH;
+    o->y = rand() % SCREEN_HEIGHT;
+    o->rot = ((float)(rand() % ((int)(2*PI*100))))/100;
+    float vel = (rand() % 10);
+    game_addvel( o, vel, o->rot);
+}
+void game_obj_screenwrap( game_obj_2d_t * o ){
+    if( o->x < 0 ){
+        o->x = SCREEN_WIDTH + o->x;
+    }
+    if( o->x >= SCREEN_WIDTH ){
+        o->x = o->x - SCREEN_WIDTH;
+    }
+    if( o->y < 0 ){
+        o->y = SCREEN_HEIGHT + o->y;
+    }
+    if( o->y >= SCREEN_HEIGHT ){
+        o->y = o->y - SCREEN_HEIGHT;
+    }
+}
+
+void init_sat_global(){
+    //global satellites, num_satellites
+    tle_t iss_tle = {0};
+    char * line1 = "1 25544U 98067A   21098.03858124  .00002197  00000-0  48233-4 0  9994";
+    char * line2 = "2 25544  51.6464 329.6848 0002834 196.2120 269.0598 15.48873021277729";
+    parse_elements( line1, line2, &iss_tle );
+    tle_t ao92_tle = {0};
+    line1 = "1 43137U 18004AC  21097.60567794  .00001372  00000-0  57805-4 0  9996";
+    line2 = "2 43137  97.4110 172.3573 0010557 100.0964 260.1465 15.25009246179867";
+    parse_elements( line1, line2, &ao92_tle );
+    tle_t by702_tle = {0};
+    line1 = "1 45857U 20042B   21097.77977101  .00001190  00000-0  17671-3 0  9991";
+    line2 = "2 45857  97.9857 174.2638 0012834  86.0351 274.2313 14.76828112 41117";
+    parse_elements( line1, line2, &by702_tle );
+
+
+    sat_calc_t empty1 = {0};
+    sat_pass_t empty2 = {0};
+
+    sat_sat_t  iss = {"ISS", {1,0,0,0, 0,0,0,0}, iss_tle, empty1, empty2 };
+    sat_sat_t  ao92 = {"AO-92", {2,0,0,0, 0,0,0,0}, ao92_tle, empty1, empty2 };
+    /*sat_sat_t  by702 = {"BY70-2", {3,0,0,0, 0,0,0,0}, by702_tle, empty1, empty2 };*/
+    memcpy(&satellites[0], &iss, sizeof(sat_sat_t));
+    memcpy(&satellites[1], &ao92, sizeof(sat_sat_t));
+    /*memcpy(&satellites[2], &by702, sizeof(sat_sat_t));*/
+    tle_t tle;
+    /*line1 = "1 27607U 02058C   21097.75620756 -.00000013  00000-0  18517-4 0  9995";*/
+    /*line2 = "2 27607  64.5557 194.5275 0033184  48.5078 311.8864 14.75731425984124";*/
+    /*parse_elements( line1, line2, &tle );*/
+    /*sat_sat_t  saudisat = {"saudisat 1c", {4,0,0,0, 0,0,0,0}, tle, empty1, empty2 };*/
+    /*memcpy(&satellites[3], &saudisat, sizeof(sat_sat_t));*/
+
+    line1 = "1 43192U 18015A   21097.94807139  .00003611  00000-0  13646-3 0  9998";
+    line2 = "2 43192  97.4754 233.0410 0015968 128.3940  17.8444 15.27529340176826";
+    parse_elements( line1, line2, &tle );
+    sat_sat_t  fmn1 = {"FMN1", {5,0,0,0, 0,0,0,0}, tle, empty1, empty2 };
+    memcpy(&satellites[2], &fmn1, sizeof(sat_sat_t));
+
+    line1 = "1 07530U 74089B   21097.73155343 -.00000035  00000-0  63996-4 0  9999";
+    line2 = "2 07530 101.8477  72.3275 0012304 156.4477  17.2774 12.53648185122865";
+    parse_elements( line1, line2, &tle );
+    sat_sat_t  oscar7 = {"oscar7", {5,0,0,0, 0,0,0,0}, tle, empty1, empty2 };
+    memcpy(&satellites[3], &oscar7, sizeof(sat_sat_t));
+
+    line1 = "1 43678U 18084H   21097.88856453 -.00000230  00000-0 -17049-4 0  9997";
+    line2 = "2 43678  97.9114 222.8511 0008587 287.9394  72.0894 14.91724574132912";
+    parse_elements( line1, line2, &tle );
+    sat_sat_t  po101 = {"PO-101", {5,0,0,0, 0,0,0,0}, tle, empty1, empty2 };
+    memcpy(&satellites[4], &po101, sizeof(sat_sat_t));
+}
+sat_sat_t satellites[5] = {0};
+int num_satellites = 5;
+star_t stars[] = {
+    {"Polaris",         2+32/60,  89.3,  1.99},
+    {"Sirius",          6+45/40, -16.7, -1.46},
+    {"Canopus",         6+24/40, -52.7, -0.73},
+    {"A. Centauri",    14+40/40, -60.8, -0.29},
+    {"Arcturus",       14+16/40,  19.2, -0.05},
+    {"Vega",           18+37/40,  38.8,  0.03},
+    {"Capella",         5+17/40,  46.0,  0.07},
+    {"Rigel",           5+15/40,  -8.2,  0.15},
+    {"Procyon",         7+39/40,   5.2,  0.36},
+    {"Achernar",        1+38/40, -57.2,  0.45},
+    {"Betelgeuse",      5+55/40,   7.4,  0.55},
+    {"Hadar",          14+ 4/40, -60.4,  0.61},
+    {"Altair",         19+51/40,   8.9,  0.77},
+    {"Acrux",          12+27/40, -63.1,  0.79},
+    {"Aldebaran",       4+36/40,  16.5,  0.86},
+    {"Antares",        16+29/40, -26.4,  0.95},
+    {"Spica",          13+25/40, -11.2,  0.97},
+    {"Pollux",          7+45/40,  28.0,  1.14},
+    {"Fomalhaut",      22+58/40, -29.6,  1.15},
+    {"Deneb",          20+41/40,  45.3,  1.24},
+    {"Mimosa",         12+48/40, -59.7,  1.26},
+    {"Regulus",        10+ 8/40,  12.0,  1.36},
+    {"Adhara",          6+59/40, -29.0,  1.50},
+    {"Castor",          7+35/40,  31.9,  1.58},
+    {"Shaula",         17+34/40, -37.1,  1.62},
+    {"Gacrux",         12+31/40, -57.1,  1.63},
+    {"Bellatrix",       5+25/60,   6.3,  1.64},
+    {"Elnath",          5+26/60,  28.6,  1.66},
+    {"Miaplacidus",     9+13/60, -69.7,  1.67},
+    {"Alnilam",         5+36/60,  -1.2,  1.69},
+    {"Alnair",         22+ 8/60, -47.0,  1.74},
+    /*{"Alnitak",18+37/60, +38.8},*/
+    /*{"Alioth",18+37/60, +38.8},*/
+    /*{"Mirfak",18+37/60, +38.8},*/
+    /*{"Dubhe",18+37/60, +38.8},*/
+    /*{"Regor",18+37/60, +38.8},*/
+    /*{"Wezen",18+37/60, +38.8},*/
+    /*{"Kaus Aus.",18+37/60, +38.8},*/
+    /*{"Alkaid Aus.",18+37/60, +38.8},*/
+    /*{"Sargas",18+37/60, +38.8},*/
+    /*{"Avior",18+37/60, +38.8},*/
+    /*{"Menkalinan",18+37/60, +38.8},*/
+    /*{"Atria",18+37/60, +38.8},*/
+    /*{"Alhena",18+37/60, +38.8},*/
+    /*{"Peacock",18+37/60, +38.8},*/
+    /*{"Koo She",18+37/60, +38.8},*/
+    /*{"Mirzam",18+37/60, +38.8},*/
+    /*{"Alphard",18+37/60, +38.8},*/
+    /*{"Polaris",18+37/60, +38.8},*/
+    /*{"Algieba",18+37/60, +38.8},*/
+    /*{"Hamal",18+37/60, +38.8},*/
+    /*{"Diphda",18+37/60, +38.8},*/
+    /*{"Nunki",18+37/60, +38.8},*/
+    /*{"Menkent",18+37/60, +38.8},*/
+    /*{"Alpheratz",18+37/60, +38.8},*/
+    /*{"Mirach",18+37/60, +38.8},*/
+    /*{"Saiph",18+37/60, +38.8},*/
+    /*{"Kochab",18+37/60, +38.8},*/
+    /*{"Al Dhanab",18+37/60, +38.8},*/
+    /*{"Rasalhague",18+37/60, +38.8},*/
+    /*{"Algol",18+37/60, +38.8},*/
+    /*{"Almach",18+37/60, +38.8},*/
+    /*{"Denebola",18+37/60, +38.8},*/
+    /*{"Cih",18+37/60, +38.8},*/
+    /*{"Muhlifain",18+37/60, +38.8},*/
+    /*{"Naos",18+37/60, +38.8},*/
+    /*{"Aspidiske",18+37/60, +38.8},*/
+    /*{"Alphecca",18+37/60, +38.8},*/
+    /*{"Suhail",18+37/60, +38.8},*/
+    /*{"Mizar",18+37/60, +38.8},*/
+    /*{"Sadr",18+37/60, +38.8},*/
+};
+int num_stars = sizeof( stars ) / sizeof( star_t );

@@ -324,7 +324,7 @@ void gfx_drawSmeter(point_t start, uint16_t width, uint16_t height, float rssi, 
  * @param sats: pointer to the array of satellites data
  * @param active_sats: bitset representing which sats are part of the fix
  */
-void gfx_drawGPSgraph(point_t start, uint16_t width, uint16_t height, sat_t *sats, uint32_t active_sats);
+void gfx_drawGPSgraph(point_t start, uint16_t width, uint16_t height, gps_sat_t *sats, uint32_t active_sats);
 
 /**
  * Function to draw a compass of arbitrary size.
@@ -336,6 +336,11 @@ void gfx_drawGPSgraph(point_t start, uint16_t width, uint16_t height, sat_t *sat
  */
 void gfx_drawGPScompass(point_t start, uint16_t radius, float deg, bool active);
 
+void gfx_drawPolarDelta(point_t polar_center,
+                        float az, float el, float polar_radius,
+                        uint16_t radius,
+                        float deg, color_t color);
+void gfx_drawDeltaArrow(point_t start, uint16_t radius, float deg, color_t color);
 
 void gfx_drawPolarAzElPlot(point_t center, int radius, color_t color);
 void gfx_drawPolar( point_t center, int radius, float az, float el, int character, color_t color);

@@ -43,6 +43,8 @@ extern void _ui_drawBottom();
 #include <satellite.h>
 #include <math.h>
 
+#include <stdlib.h>
+
 void _ui_drawMenuList(uint8_t selected, int (*getCurrentEntry)(char *buf, uint8_t max_len, uint8_t index))
 {
     point_t pos = layout.line1_pos;
@@ -397,146 +399,260 @@ void _ui_drawMenuGPS()
                      last_state.gps_data.satellites,
                      last_state.gps_data.active_sats);
 }
-void _ui_drawMenuSATpass(){
+int _ui_getSatelliteName(char *buf, uint8_t max_len, uint8_t index)
+{
+    int result = 0;
+
+    if(index == 0)
+    {
+        snprintf(buf, max_len, "All Sats (TODO)");
+    }
+    else
+    {
+        if( index -1 < num_satellites ){ 
+            //index 0 is actually a special value
+            //index 1 is actually the first sat in the array
+            sat_sat_t selected = satellites[index-1];
+            sat_calc_t sat = calcSatNow( selected.tle, last_state );
+            /*printf("SAT %s \n", selected.name);*/
+            snprintf(buf, max_len, "%.1f %s", DEG(sat.elev), selected.name);
+        } else {
+            result = -1;
+        }
+    }
+    return result;
+}
+void _ui_drawMenuSatChoose(ui_state_t * ui_state){
+    gfx_clearScreen();
+    gfx_print(layout.top_pos, "Which Satellite?", FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
+    // Print zone entries
+    _ui_drawMenuList(ui_state->menu_selected, _ui_getSatelliteName);
+}
+
+void _ui_drawMenuSatPredict(ui_state_t* ui_state){
+    //actually, it's "asteroids"
+    //this is a single game frame
+    static unsigned long long last_t = 0;
+    static game_obj_2d_t me = {0};
+    static game_obj_2d_t asteroids[3] = {0};
+    static int frame = 0;
+    unsigned long long t = getTick();
+    unsigned long long td = t - last_t;
+    point_t center = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2};
+    /*printf("TD: %lu \n", td);*/
+    if( last_t == 0 ){
+        //init
+        //everything should already be init'd to zero
+        /*printf("init\n");*/
+        me.x = center.x;
+        me.y = center.y;
+        me.rot = RAD(-45);
+        game_obj_init( &asteroids[0] );
+        game_obj_init( &asteroids[1] );
+        game_obj_init( &asteroids[2] );
+        
+    } else {
+        //regular call
+        game_move(&me, td);
+        if( ui_state->keys & KEY_4 ){
+            me.rot -= RAD(2);
+        }
+        if( ui_state->keys & KEY_6 ){
+            me.rot += RAD(2);
+        }
+        if( ui_state->keys & KEY_5 ){
+            game_addvel(&me, 1, me.rot);
+        }
+        if( ui_state->keys & KEY_ENTER ){
+            //fire
+        }
+        game_obj_screenwrap(&me);
+        for( int i = 0; i < 3; i++ ){
+            game_move(&asteroids[i], td);
+            game_obj_screenwrap(&asteroids[i]);
+        }
+    }
+    point_t mepos = {me.x, me.y};
+    fflush(stdout);
+
+    gfx_clearScreen();
+    gfx_drawDeltaArrow(mepos, 8, DEG(me.rot)+90, yellow_fab413);
+    if( ui_state->keys & KEY_5 ){
+        //draw rocket exhaust
+    }
+    for( int i = 0; i < 3; i++ ){
+        point_t apos = {asteroids[i].x, asteroids[i].y};
+        gfx_drawCircle(apos, 4, color_white);
+    }
+
+    frame++;
+
+    last_t = t;
+}
+void _ui_drawMenuSatPass(ui_state_t* ui_state){
     //may crash on real radio when opened if task stack == 4k, 8k is fine though
     
     char sbuf[25] = { 0 }; //general purpose snprintf buffer
-    char gridsquare[7] = {0}; //we want to use this as a c-style string so that extra byte stays zero
-
-    float lat;
-    float lon;
-    /*float alt;*/
-    double az = 0;
-    double elev = 0;
-    int doppler_offset = 0; //i want a auto_SI_prefix fn again
 
     gfx_clearScreen();
-    //I've been using this to keep an eye on alignment, but remove later
-    gfx_drawVLine(SCREEN_WIDTH/2, 1, color_grey);
-    _ui_drawMainBackground(); 
     _ui_drawMainTop();
-    _ui_drawBottom();
 
-    //get a position. This will be used all over the place.
-    if( ! last_state.settings.gps_enabled || last_state.gps_data.fix_quality == 0 ){
-      //fix_type is 1 sometimes when it shouldn't be, have to use fix_quality 
-      
-      //TODO: need a way to show gps enabled/disable, gps fix/nofix
-      /*gfx_print(layout.line3_pos, "no gps fix", FONT_SIZE_12PT, TEXT_ALIGN_CENTER, color_white);*/
+    /*int retrograde = degrees(tle->xincl) > 90;*/
+    //if( retrograde ) satellite passes east to west
+    //else it passes west to east
 
-      //TODO pull from manual position data rather than hardcoding
-      lat =  41.70011;
-      lon = -70.29947;
-      /*alt = 0; //msl geoid meters*/
-    } else {
-      lat = last_state.gps_data.latitude;
-      lon = last_state.gps_data.longitude;
-      /*alt = last_state.gps_data.altitude; //msl geoid meters*/
+    sat_pos_t pass_azel[] = {
+        {2459315.240168, 287.3, 1.2,2430.8},
+        {2459315.240368, 288.7, 2.3,2327.1},{2459315.240568, 290.2, 3.4,2224.8},{2459315.240768,
+        291.9, 4.6,2124.1},{2459315.240968, 293.7,
+        5.9,2025.5},{2459315.241168, 295.8, 7.1,1929.2},{2459315.241368,
+        298.0, 8.5,1835.6},{2459315.241568, 300.6,
+        9.9,1745.2},{2459315.241768, 303.4, 11.3,1658.6},{2459315.241968,
+        306.6, 12.8,1576.4},{2459315.242168, 310.1,
+        14.3,1499.3},{2459315.242368, 314.1, 15.9,1428.2},{2459315.242568,
+        318.5, 17.4,1364.1},{2459315.242768, 323.4,
+        18.8,1308.1},{2459315.242968, 328.8, 20.1,1261.1},{2459315.243168,
+        334.7, 21.3,1224.4},{2459315.243368, 341.0,
+        22.1,1198.8},{2459315.243568, 347.5, 22.7,1185.1},{2459315.243768,
+        354.2, 22.9,1183.6},{2459315.243968, 0.8,
+        22.7,1194.5},{2459315.244168, 7.2, 22.1,1217.4},{2459315.244368,
+        13.3, 21.3,1251.6},{2459315.244568, 18.9,
+        20.2,1296.2},{2459315.244768, 24.0, 19.0,1350.2},{2459315.244968,
+        28.6, 17.6,1412.5},{2459315.245168, 32.8,
+        16.2,1482.0},{2459315.245368, 36.5, 14.8,1557.8},{2459315.245568,
+        39.8, 13.4,1638.8},{2459315.245768, 42.8,
+        12.0,1724.5},{2459315.245968, 45.4, 10.7,1814.0},{2459315.246168,
+        47.8, 9.4,1906.8},{2459315.246368, 49.9,
+        8.1,2002.5},{2459315.246568, 51.9, 6.9,2100.5},{2459315.246768,
+        53.6, 5.8,2200.7},{2459315.246968, 55.2,
+        4.7,2302.5},{2459315.247168, 56.6, 3.6,2405.9},{2459315.247368,
+        58.0, 2.5,2510.5},{2459315.247568, 59.2,
+        1.5,2616.3},{2459315.247768, 60.3, 0.6,2722.9},{2459315.247968,
+        61.3, -0.4,2830.4},
+    };
+    int num_points_pass = sizeof(pass_azel) / sizeof(sat_pos_t);
+
+
+    int radius = SCREEN_WIDTH/2/1.5;
+    point_t plot_center = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2+5};
+    gfx_drawPolarAzElPlot( plot_center, radius, color_grey );
+    for( int i = 0; i < num_points_pass; i+=2 ){
+        gfx_drawPolar( plot_center, radius, pass_azel[i].az, pass_azel[i].elev, 
+                0, //which means set a pixel, don't draw a character
+                color_white );
     }
+    point_t rise_rel = azel_deg_to_xy( pass_azel[0].az, pass_azel[0].elev, radius);
+    point_t left_text_offset = {-26, 3};
+    point_t set_rel = azel_deg_to_xy( pass_azel[num_points_pass-1].az, pass_azel[num_points_pass-1].elev, radius);
+    point_t right_text_offset = {9, 3};
+    point_t rise = offset_point( plot_center, 2, rise_rel, left_text_offset );
+    point_t set = offset_point( plot_center, 2, set_rel, right_text_offset );
+
+    //at start and end points, print rise and set time
+    snprintf(sbuf, 25, "%02d:%02d", 4, 53);
+    gfx_print(rise, sbuf, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+
+    snprintf(sbuf, 25, "%02d:%02d", 4, 59);
+    gfx_print(set, sbuf, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+
+    point_t line_offset_5pt = {0,8};
+    point_t temppos = {0,0};
+
+    snprintf(sbuf, 25, "%.0f AZ", pass_azel[0].az);
+    temppos = offset_point( rise, 1, line_offset_5pt );
+    gfx_print(temppos, sbuf, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+
+    snprintf(sbuf, 25, "%.0f AZ", pass_azel[num_points_pass-1].az);
+    temppos = offset_point( set, 1, line_offset_5pt );
+    gfx_print(temppos, sbuf, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
     
-    //draw gridsquare text
-    lat_lon_to_maidenhead(lat, lon, gridsquare, 3); //precision=3 here means 6 characters like FN41uq
-    gfx_print(layout.line2_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
+    int i = 0;
+    double az = pass_azel[i].az;
+    double elev = pass_azel[i].elev;
 
-    snprintf(sbuf, 25, "AZ %.1f", az);
-    gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
-    snprintf(sbuf, 25, "EL %.1f", elev);
-    gfx_print(layout.line2_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
+    gfx_drawPolar( plot_center, radius, az, elev, '+', yellow_fab413 );
 
-    snprintf(sbuf, 25, "%.1fk DOP", ((float)doppler_offset)/1000);
-    /*gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);*/
+
+    topo_pos_t obs = getObserverPosition();
+    double jd = curTime_to_julian_day(last_state.time);
+    for( int i = 0; i < num_stars; i+=1 ){
+        double az, alt;
+        double ra, dec;
+        ra  = RAD(stars[i].ra*15); //in decimal hours, so *15->deg
+        dec = RAD(stars[i].dec);
+        ra_dec_to_az_alt(jd, RAD(obs.lat), RAD(obs.lon), ra, dec, &az, &alt);
+        /*printf("%.1f %.1f %.0f %.0f\n", ra, dec, DEG(az), DEG(alt));*/
+        uint8_t brt = 0xff - stars[i].mag * 0xff;
+        if( stars[i].mag < 0 ) brt = 0xff;
+        if( brt < 0x20 ) brt = 0x20;
+        color_t clr = {0xff, 0xff, 0x00, brt};
+        color_t clr2 = {0xff, 0xff, 0x00, 0x30};
+        if( i < 6 ){
+            point_t relpos = azel_deg_to_xy( DEG(az), DEG(alt), radius);
+            point_t offset = {3, 3};
+            point_t pos = offset_point( plot_center, 2, relpos, offset );
+            gfx_print(pos, stars[i].name, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, clr2);
+        }
+        gfx_drawPolar( plot_center, radius, DEG(az), DEG(alt), 0, clr );
+    }
+
+
 }
 
 
-void _ui_drawMenuSAT()
+void _ui_drawMenuSatTrack(ui_state_t * ui_state)
 {
-    /*gfx_clearScreen();*/
-    /*_ui_drawMainBackground(); */
-    /*_ui_drawMainTop();*/
-    /*_ui_drawBottom();*/
     
     char sbuf[25] = { 0 }; //general purpose snprintf buffer
     char gridsquare[7] = {0}; //we want to use this as a c-style string so that extra byte stays zero
 
-    float lat;
-    float lon;
-    /*float alt;*/
-    double az = 0;
-    double elev = 30;
-    int doppler_offset = 0; //i want a auto_SI_prefix fn again
-
-    sat_pos pass_azel[] = {
-        {2459314.475880, 285.8, 0.9},{2459314.476080, 283.8,
-        1.5},{2459314.476280, 281.8, 2.1},{2459314.476480, 279.5,
-        2.7},{2459314.476680, 277.0, 3.3},{2459314.476880, 274.4,
-        3.9},{2459314.477080, 271.5, 4.4},{2459314.477280, 268.4,
-        5.0},{2459314.477480, 265.0, 5.4},{2459314.477680, 261.3,
-        5.8},{2459314.477880, 257.4, 6.1},{2459314.478080, 253.3,
-        6.3},{2459314.478280, 248.9, 6.5},{2459314.478480, 244.3,
-        6.5},{2459314.478680, 239.5, 6.3},{2459314.478880, 234.7,
-        6.1},{2459314.479080, 229.8, 5.7},{2459314.479280, 224.9,
-        5.2},{2459314.479480, 220.1, 4.5},{2459314.479680, 215.5,
-        3.8},{2459314.479880, 211.1, 3.0},{2459314.480080, 206.9,
-        2.1},{2459314.480280, 203.0, 1.2},{2459314.480480, 199.3,
-        0.3},{2459314.480680, 195.9, -0.6},
-    };
-    int num_points_pass = sizeof(pass_azel) / sizeof(sat_pos);
-    double jd = curTime_to_julian_day(last_state.time);
     gfx_clearScreen();
     _ui_drawMainBackground(); 
     _ui_drawMainTop();
     _ui_drawBottom();
-
-    //get a position. This will be used all over the place.
-    if( ! last_state.settings.gps_enabled || last_state.gps_data.fix_quality == 0 ){
-      //fix_type is 1 sometimes when it shouldn't be, have to use fix_quality 
-      
-      //TODO: need a way to show gps enabled/disable, gps fix/nofix
-      /*gfx_print(layout.line3_pos, "no gps fix", FONT_SIZE_12PT, TEXT_ALIGN_CENTER, color_white);*/
-
-      //TODO pull from manual position data rather than hardcoding
-      lat =  41.70011;
-      lon = -70.29947;
-      /*alt = 0; //msl geoid meters*/
-    } else {
-      lat = last_state.gps_data.latitude;
-      lon = last_state.gps_data.longitude;
-      /*alt = last_state.gps_data.altitude; //msl geoid meters*/
+    topo_pos_t obs = getObserverPosition();
+    double jd = curTime_to_julian_day(last_state.time);
+    int idx = ui_state->menu_selected - 1; //because 0 is "all sats"
+    if( idx == -1 ){ //avoid the all_sats condition for now
+        idx = 0;
     }
-    
+    sat_sat_t selected = satellites[ idx ]; //should use idx!
+    sat_calc_t sat = calcSat( selected.tle, jd, obs);
+
     // left side
     // relative coordinates to satellite
-    snprintf(sbuf, 25, "AZ %.1f", az);
+    snprintf(sbuf, 25, "AZ %.1f", DEG(sat.az));
     gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
-    snprintf(sbuf, 25, "EL %.1f", elev);
+    snprintf(sbuf, 25, "EL %.1f", DEG(sat.elev));
     gfx_print(layout.line2_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
+    gfx_print(layout.line3_pos, selected.name, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
 
     //right side
     //doppler correction readout
-    snprintf(sbuf, 25, "%.1fk DOP", ((float)doppler_offset)/1000);
+    /*snprintf(sbuf, 25, "%.1fk DOP", ((float)doppler_offset)/1000);*/
     /*gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);*/
     //draw gridsquare text
-    lat_lon_to_maidenhead(lat, lon, gridsquare, 3); //precision=3 here means 6 characters like FN41uq
-    gfx_print(layout.line1_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
+    lat_lon_to_maidenhead(obs.lat, obs.lon, gridsquare, 3); //precision=3 here means 6 characters like FN41uq
+    gfx_print(layout.line2_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
 
     //center bottom - show 
     //satellite and AOS/LOS countdown 
 
     //draw Az/El
     int radius = SCREEN_WIDTH/2/4;
-    point_t plot_center = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2-5};
+    point_t plot_center = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2+5};
     gfx_drawPolarAzElPlot( plot_center, radius, color_grey );
-    for( int i = 0; i < num_points_pass; i+=2 ){
-        gfx_drawPolar( plot_center, radius, pass_azel[i].az,
-            pass_azel[i].elev, 0, color_white );
-    }
-    gfx_drawPolar( plot_center, radius, az, elev, '+', yellow_fab413 );
+    /*for( int i = 0; i < num_points_pass; i+=2 ){*/
+        /*gfx_drawPolar( plot_center, radius, pass_azel[i].az,*/
+            /*pass_azel[i].elev, 0, color_white );*/
+    /*}*/
+    gfx_drawPolar( plot_center, radius, DEG(sat.az), DEG(sat.elev), '+', yellow_fab413 );
 
-    
+    /*
     char * pass_state;
     double mark;
-    double pass_start_jd = pass_azel[0].jd; 
-    double pass_end_jd = pass_azel[num_points_pass-1].jd; 
+    double pass_start_jd = 0; //pass_azel[0].jd; 
+    double pass_end_jd = 0; //pass_azel[num_points_pass-1].jd; 
     //mark is the time we care about most - e.g. before a pass, it's the time the pass starts
     //or during a pass, it's the LOS time (when the sat will go below the horizon)
     if( jd < pass_start_jd ){
@@ -555,10 +671,9 @@ void _ui_drawMenuSAT()
         mark = pass_end_jd;
     }
     float diff = (mark - jd)*86400; //diff is seconds until (+) or since (-) the mark timestamp
-    /*printf("%f\n",diff);*/
-    const char * sat_name = "ISS";
     snprintf(sbuf, 25, "%s %s %.0fs", sat_name, pass_state, diff);
     gfx_print(layout.line3_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
+    */
 }
 #endif
 
