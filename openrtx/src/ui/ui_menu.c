@@ -405,7 +405,7 @@ int _ui_getSatelliteName(char *buf, uint8_t max_len, uint8_t index)
 
     if(index == 0)
     {
-        snprintf(buf, max_len, "All Sats (TODO)");
+        snprintf(buf, max_len, "Current Sky");
     }
     else
     {
@@ -414,8 +414,7 @@ int _ui_getSatelliteName(char *buf, uint8_t max_len, uint8_t index)
             //index 1 is actually the first sat in the array
             sat_sat_t selected = satellites[index-1];
             sat_calc_t sat = calcSatNow( selected.tle, last_state );
-            /*printf("SAT %s \n", selected.name);*/
-            snprintf(buf, max_len, "%.1f %s", DEG(sat.elev), selected.name);
+            snprintf(buf, max_len, "% 6.1f   %s", DEG(sat.elev), selected.name);
         } else {
             result = -1;
         }
@@ -424,7 +423,7 @@ int _ui_getSatelliteName(char *buf, uint8_t max_len, uint8_t index)
 }
 void _ui_drawMenuSatChoose(ui_state_t * ui_state){
     gfx_clearScreen();
-    gfx_print(layout.top_pos, "Which Satellite?", FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
+    gfx_print(layout.top_pos, "Satellite Tracking", FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
     // Print zone entries
     _ui_drawMenuList(ui_state->menu_selected, _ui_getSatelliteName);
 }
@@ -489,13 +488,13 @@ void _ui_drawMenuSatPredict(ui_state_t* ui_state){
 
     last_t = t;
 }
-void _ui_drawMenuSatPass(ui_state_t* ui_state){
-    //may crash on real radio when opened if task stack == 4k, 8k is fine though
+void _ui_drawMenuSatSkyView(ui_state_t * ui_state, int whichsat, int passidx, int drawstars ){
+    //whichsat == 0 means all sats (so you can pass in menu_selected directly)
+    //whichpass == 0 means first pass
+    //(this is partly because pass selection is not menu based, but based around custom inputs)
     
     char sbuf[25] = { 0 }; //general purpose snprintf buffer
 
-    gfx_clearScreen();
-    _ui_drawMainTop();
 
     /*int retrograde = degrees(tle->xincl) > 90;*/
     //if( retrograde ) satellite passes east to west
@@ -533,8 +532,31 @@ void _ui_drawMenuSatPass(ui_state_t* ui_state){
     int num_points_pass = sizeof(pass_azel) / sizeof(sat_pos_t);
 
 
-    int radius = SCREEN_WIDTH/2/1.5;
-    point_t plot_center = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2+5};
+    static int radius = SCREEN_WIDTH/2/1.5;
+    static point_t plot_center = {SCREEN_WIDTH/2, SCREEN_HEIGHT/2+5};
+    if( ui_state->keys & KEY_0 ){
+        radius = SCREEN_WIDTH/2/1.5;
+        plot_center.x = SCREEN_WIDTH/2;
+        plot_center.y = SCREEN_HEIGHT/2+5;
+    }
+    if( ui_state->keys & KEY_UP ){
+        radius *= 1.1;
+    }
+    if( ui_state->keys & KEY_DOWN ){
+        radius = radius*10/11;
+    }
+    if( ui_state->keys & KEY_2 ){
+        plot_center.y += 5;
+    }
+    if( ui_state->keys & KEY_8 ){
+        plot_center.y -= 5;
+    }
+    if( ui_state->keys & KEY_4 ){
+        plot_center.x += 5;
+    }
+    if( ui_state->keys & KEY_6 ){
+        plot_center.x -= 5;
+    }
     gfx_drawPolarAzElPlot( plot_center, radius, color_grey );
     for( int i = 0; i < num_points_pass; i+=2 ){
         gfx_drawPolar( plot_center, radius, pass_azel[i].az, pass_azel[i].elev, 
@@ -572,7 +594,9 @@ void _ui_drawMenuSatPass(ui_state_t* ui_state){
 
     gfx_drawPolar( plot_center, radius, az, elev, '+', yellow_fab413 );
 
-
+    //handle zoom and pan events here
+    //+- radius for zoom, +- plot_center for pan
+    //0 means reset
     topo_pos_t obs = getObserverPosition();
     double jd = curTime_to_julian_day(last_state.time);
     for( int i = 0; i < num_stars; i+=1 ){
@@ -596,7 +620,14 @@ void _ui_drawMenuSatPass(ui_state_t* ui_state){
         gfx_drawPolar( plot_center, radius, DEG(az), DEG(alt), 0, clr );
     }
 
-
+}
+void _ui_drawMenuSatPass(ui_state_t* ui_state){
+    gfx_clearScreen();
+    _ui_drawMainTop();
+    int whichsat = ui_state->menu_selected;
+    //handle inputs to select pass
+    _ui_drawMenuSatSkyView(ui_state, whichsat, 0, 1);
+    return;
 }
 
 
@@ -607,25 +638,27 @@ void _ui_drawMenuSatTrack(ui_state_t * ui_state)
     char gridsquare[7] = {0}; //we want to use this as a c-style string so that extra byte stays zero
 
     gfx_clearScreen();
-    _ui_drawMainBackground(); 
     _ui_drawMainTop();
-    _ui_drawBottom();
     topo_pos_t obs = getObserverPosition();
     double jd = curTime_to_julian_day(last_state.time);
-    int idx = ui_state->menu_selected - 1; //because 0 is "all sats"
-    if( idx == -1 ){ //avoid the all_sats condition for now
-        idx = 0;
+    if( ui_state->menu_selected == 0 ){ 
+        //first menu entry (0) is to show all satellites in sky view
+        _ui_drawMenuSatSkyView(ui_state, 0, 0, 1);
+        return;
     }
+    _ui_drawMainBackground(); 
+    _ui_drawBottom();
+    int idx = ui_state->menu_selected - 1; //because 0 is "all sats"
     sat_sat_t selected = satellites[ idx ]; //should use idx!
     sat_calc_t sat = calcSat( selected.tle, jd, obs);
 
     // left side
     // relative coordinates to satellite
     snprintf(sbuf, 25, "AZ %.1f", DEG(sat.az));
-    gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
-    snprintf(sbuf, 25, "EL %.1f", DEG(sat.elev));
     gfx_print(layout.line2_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
-    gfx_print(layout.line3_pos, selected.name, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
+    snprintf(sbuf, 25, "EL %.1f", DEG(sat.elev));
+    gfx_print(layout.line2_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
+    gfx_print(layout.line1_pos, selected.name, FONT_SIZE_8PT, TEXT_ALIGN_CENTER, color_white);
 
     //right side
     //doppler correction readout
@@ -633,7 +666,7 @@ void _ui_drawMenuSatTrack(ui_state_t * ui_state)
     /*gfx_print(layout.line1_pos, sbuf, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);*/
     //draw gridsquare text
     lat_lon_to_maidenhead(obs.lat, obs.lon, gridsquare, 3); //precision=3 here means 6 characters like FN41uq
-    gfx_print(layout.line2_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_RIGHT, color_white);
+    gfx_print(layout.line3_pos, gridsquare, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color_white);
 
     //center bottom - show 
     //satellite and AOS/LOS countdown 
