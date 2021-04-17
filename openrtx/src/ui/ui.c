@@ -109,7 +109,8 @@ extern void _ui_drawSettingsGPS(ui_state_t* ui_state);
 extern void _ui_drawMenuSatChoose(ui_state_t* ui_state);
 extern void _ui_drawMenuSatTrack(ui_state_t* ui_state);
 extern void _ui_drawMenuSatPass(ui_state_t* ui_state);
-/*extern void _ui_drawMenuSatPredict(ui_state_t* ui_state);*/
+extern void _ui_drawMenuSatPredict(ui_state_t* ui_state);
+extern void init_sat_global();
 #endif
 extern void _ui_drawMenuSettings(ui_state_t* ui_state);
 extern void _ui_drawMenuInfo(ui_state_t* ui_state);
@@ -1006,8 +1007,8 @@ void ui_updateFSM(event_t event, bool *sync_rtx)
                     _ui_menuDown(num_satellites+1);
                 if(msg.keys & KEY_ENTER)
                     state.ui_screen = MENU_SAT_TRACK;
-                /*if(msg.keys & KEY_5)*/
-                    /*state.ui_screen = MENU_SAT_PREDICT;*/
+                if(msg.keys & KEY_5)
+                    state.ui_screen = MENU_SAT_PREDICT;
                 break;
             case MENU_SAT_TRACK:
                 if(msg.keys & KEY_ESC)
@@ -1017,12 +1018,13 @@ void ui_updateFSM(event_t event, bool *sync_rtx)
                 break;
             case MENU_SAT_PASS:
                 if(msg.keys & KEY_ESC)
-                    _ui_menuBack(MENU_SAT_TRACK);
+                    state.ui_screen = MENU_SAT_TRACK; 
+                    //menu_selected is reset by using menuBack! so don't!
                 break;
-            /*case MENU_SAT_PREDICT:*/
-                /*if(msg.keys & KEY_ESC)*/
-                    /*_ui_menuBack(MENU_SAT_CHOOSE);*/
-                /*break;*/
+            case MENU_SAT_PREDICT:
+                if(msg.keys & KEY_ESC)
+                    _ui_menuBack(MENU_SAT_CHOOSE);
+                break;
 #endif
             // Settings menu screen
             case MENU_SETTINGS:
@@ -1260,9 +1262,9 @@ void ui_updateGUI()
         case MENU_SAT_PASS:
             _ui_drawMenuSatPass(&ui_state);
             break;
-        /*case MENU_SAT_PREDICT:*/
-            /*_ui_drawMenuSatPredict(&ui_state);*/
-            /*break;*/
+        case MENU_SAT_PREDICT:
+            _ui_drawMenuSatPredict(&ui_state);
+            break;
 #endif
         // Settings menu screen
         case MENU_SETTINGS:
