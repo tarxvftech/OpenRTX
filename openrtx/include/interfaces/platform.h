@@ -111,12 +111,19 @@ float platform_getVolumeLevel();
 /**
  * This function reads and returns the current channel selector level.
  */
-uint8_t platform_getChSelector();
+int8_t platform_getChSelector();
 
 /**
  * This function reads and returns the current PTT status.
  */
 bool platform_getPttStatus();
+
+/**
+ * This function reads and returns the current status of the power on/power off
+ * button or switch.
+ * @return true if power is enabled, false otherwise.
+ */
+bool platform_pwrButtonStatus();
 
 /**
  * This function turns on the selected led.

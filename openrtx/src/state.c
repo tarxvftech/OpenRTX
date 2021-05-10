@@ -47,7 +47,6 @@ void state_init()
     state.radioStateUpdated = true;
 #ifdef HAS_RTC
     state.time = rtc_getTime();
-    state_applyTimezone();
 #endif
     state.v_bat = platform_getVbat();
     state.charge = battery_getCharge(state.v_bat);
@@ -103,18 +102,38 @@ void state_terminate()
     //nvm_writeSettings(&state.settings);
 }
 
-void state_applyTimezone()
+curTime_t state_getLocalTime(curTime_t utc_time)
 {
-    if(state.time.hour + state.settings.utc_timezone >= 24)
+    curTime_t local_time = utc_time;
+    if(local_time.hour + state.settings.utc_timezone >= 24)
     {
-        state.time.hour = state.time.hour - 24 + state.settings.utc_timezone;
+        local_time.hour = local_time.hour - 24 + state.settings.utc_timezone;
+        local_time.date += 1;
     }
-    else if(state.time.hour + state.settings.utc_timezone < 0)
+    else if(local_time.hour + state.settings.utc_timezone < 0)
     {
-        state.time.hour = state.time.hour + 24 + state.settings.utc_timezone;
+        local_time.hour = local_time.hour + 24 + state.settings.utc_timezone;
+        local_time.date -= 1;
     }
     else
+        local_time.hour += state.settings.utc_timezone;
+    return local_time;
+}
+
+curTime_t state_getUTCTime(curTime_t local_time)
+{
+    curTime_t utc_time = local_time;
+    if(utc_time.hour - state.settings.utc_timezone >= 24)
     {
-        state.time.hour += state.settings.utc_timezone;
+        utc_time.hour = utc_time.hour - 24 - state.settings.utc_timezone;
+        utc_time.date += 1;
     }
+    else if(utc_time.hour - state.settings.utc_timezone < 0) 
+    {
+        utc_time.hour = utc_time.hour + 24 - state.settings.utc_timezone;
+        local_time.date -= 1;
+    }
+    else
+        utc_time.hour -= state.settings.utc_timezone;
+    return utc_time;
 }

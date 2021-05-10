@@ -39,7 +39,7 @@
 #include <hwconfig.h>
 
 // Maximum menu entry length
-#define MAX_ENTRY_LEN 16
+#define MAX_ENTRY_LEN 21
 // Frequency digits
 #define FREQ_DIGITS 8
 // Time & Date digits
@@ -54,7 +54,6 @@ enum uiScreen
     MENU_ZONE,
     MENU_CHANNEL,
     MENU_CONTACTS,
-    MENU_SMS,
     MENU_GPS,
     MENU_SAT_CHOOSE,
     MENU_SAT_TRACK,
@@ -83,7 +82,6 @@ enum menuItems
     M_ZONE = 0,
     M_CHANNEL,
     M_CONTACTS,
-    M_MESSAGES,
 #ifdef HAS_GPS
     M_GPS,
     M_SAT,
@@ -151,8 +149,7 @@ typedef struct layout_t
     fontSize_t bottom_font;
     fontSize_t input_font;
     fontSize_t menu_font;
-}
-__attribute__((packed)) layout_t;
+} layout_t;
 
 /**
  * This structs contains state variables internal to the

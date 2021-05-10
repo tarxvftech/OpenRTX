@@ -72,7 +72,7 @@ float platform_getVolumeLevel()
 }
 
 
-uint8_t platform_getChSelector()
+int8_t platform_getChSelector()
 {
     return Radio_State.chSelector;
 }
@@ -83,6 +83,11 @@ bool platform_getPttStatus()
     return Radio_State.PttStatus;
 }
 
+bool platform_pwrButtonStatus()
+{
+    /* Suppose radio is always on */
+    return true;
+}
 
 void platform_ledOn(__attribute__((unused)) led_t led)
 {

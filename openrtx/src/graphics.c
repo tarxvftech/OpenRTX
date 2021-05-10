@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <hwconfig.h>
+#include <stdarg.h>
 #include <interfaces/display.h>
 #include <interfaces/graphics.h>
 
@@ -104,6 +105,7 @@ bw_t _color2bw(color_t true_color)
 bool initialized = 0;
 PIXEL_T *buf;
 uint16_t fbSize;
+char text[32];
 
 void gfx_init()
 {
@@ -120,6 +122,8 @@ void gfx_init()
     if((fbSize * 8) < (SCREEN_HEIGHT * SCREEN_WIDTH)) fbSize += 1;
     fbSize *= sizeof(uint8_t);
 #endif
+    // Clear text buffer
+    memset(text, 0x00, 32);
 }
 
 void gfx_terminate()
@@ -391,16 +395,22 @@ static inline uint16_t get_reset_x(textAlign_t alignment, uint16_t line_size,
     return 0;
 }
 
-point_t gfx_print(point_t start, const char *text, fontSize_t size,
-                                 textAlign_t alignment, color_t color)
+uint8_t gfx_getFontHeight(fontSize_t size)
 {
+    GFXfont f = fonts[size];
+    GFXglyph glyph = f.glyph['|' - f.first];
+    return glyph.height;
+}
 
+point_t gfx_printBuffer(point_t start, fontSize_t size, textAlign_t alignment, 
+                        color_t color, const char *buf)
+{
     GFXfont f = fonts[size];
 
-    size_t len = strlen(text);
+    size_t len = strlen(buf);
 
     // Compute size of the first row in pixels
-    uint16_t line_size = get_line_size(f, text, len);
+    uint16_t line_size = get_line_size(f, buf, len);
     uint16_t reset_x = get_reset_x(alignment, line_size, start.x);
     start.x = reset_x;
 
@@ -411,7 +421,7 @@ point_t gfx_print(point_t start, const char *text, fontSize_t size,
     /* For each char in the string */
     for(unsigned i = 0; i < len; i++)
     {
-        char c = text[i];
+        char c = buf[i];
         GFXglyph glyph = f.glyph[c - f.first];
         uint8_t *bitmap = f.bitmap;
 
@@ -439,7 +449,7 @@ point_t gfx_print(point_t start, const char *text, fontSize_t size,
         if (start.x + glyph.xAdvance > SCREEN_WIDTH)
         {
             // Compute size of the first row in pixels
-            line_size = get_line_size(f, text, len);
+            line_size = get_line_size(f, buf, len);
             start.x = reset_x = get_reset_x(alignment, line_size, start.x);
             start.y += f.yAdvance;
         }
@@ -480,6 +490,45 @@ point_t gfx_print(point_t start, const char *text, fontSize_t size,
     return text_size;
 }
 
+point_t gfx_print(point_t start, fontSize_t size, textAlign_t alignment, 
+                  color_t color, const char *fmt, ... )
+{
+    // Get format string and arguments from var char
+    va_list ap; 
+    va_start(ap, fmt);
+    vsnprintf(text, sizeof(text)-1, fmt, ap);
+    va_end(ap);
+
+    return gfx_printBuffer(start, size, alignment, color, text);
+}
+
+point_t gfx_printLine(uint8_t cur, uint8_t tot, uint16_t startY, uint16_t endY, 
+                      uint16_t startX, fontSize_t size, textAlign_t alignment, 
+                      color_t color, const char* fmt, ... )
+{
+    // Get format string and arguments from var char
+    va_list ap; 
+    va_start(ap, fmt);
+    vsnprintf(text, sizeof(text)-1, fmt, ap);
+    va_end(ap);
+    
+    // Estimate font height by reading the gliph | height
+    uint8_t fontH = gfx_getFontHeight(size);
+    
+    // If endY is 0 set it to default value = SCREEN_HEIGHT
+    if(endY == 0) endY = SCREEN_HEIGHT;
+
+    // Calculate print coordinates
+    uint16_t height = endY - startY;
+    // to print 2 lines we need 3 padding spaces
+    uint16_t gap = (height - (fontH * tot)) / (tot + 1);
+    // We need a gap and a line height for each line
+    uint16_t printY = startY + (cur * (gap + fontH));
+
+    point_t start = {startX, printY};
+    return gfx_printBuffer(start, size, alignment, color, text);
+}
+
 // Print an error message to the center of the screen, surronded by a red (when possible) box
 void gfx_printError(const char *text, fontSize_t size)
 {
@@ -490,7 +539,7 @@ void gfx_printError(const char *text, fontSize_t size)
     point_t start = {0, SCREEN_HEIGHT/2 + 5};
 
     // Print the error message
-    point_t text_size = gfx_print(start, text, size, TEXT_ALIGN_CENTER, white);
+    point_t text_size = gfx_print(start, size, TEXT_ALIGN_CENTER, white, text);
     text_size.x += box_padding;
     text_size.y += box_padding;
     point_t box_start = {0, 0};
@@ -595,7 +644,6 @@ void gfx_drawSmeter(point_t start, uint16_t width, uint16_t height, float rssi,
     color_t white =  {255, 255, 255, 255};
     color_t yellow = {250, 180, 19 , 255};
     color_t red =    {255, 0,   0  , 255};
-    char buf[4] = { 0 };
 
     // S-level marks and numbers
     for(int i = 0; i < 11; i++)
@@ -605,11 +653,10 @@ void gfx_drawSmeter(point_t start, uint16_t width, uint16_t height, float rssi,
         point_t pixel_pos = {start.x + i * (width - 1) / 11, start.y};
         if (i == 10) {
             pixel_pos.x -= 8;
-            snprintf(buf, 4, "+%d", i);
+            gfx_print(pixel_pos, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color, "+%d", i);
         }
         else
-            snprintf(buf, 4, "%d", i);
-        gfx_print(pixel_pos, buf, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color);
+            gfx_print(pixel_pos, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color, "%d", i);
         if (i == 10) {
             pixel_pos.x += 8;
         }
@@ -618,7 +665,7 @@ void gfx_drawSmeter(point_t start, uint16_t width, uint16_t height, float rssi,
     }
 
     point_t pixel_pos = {start.x + width - 11, start.y};
-    gfx_print(pixel_pos, "+20", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, red);
+    gfx_print(pixel_pos, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, red, "+20");
     pixel_pos.x += 10;
     pixel_pos.y += height;
     gfx_setPixel(pixel_pos, red);
@@ -666,7 +713,6 @@ void gfx_drawGPSgraph(point_t start,
 {
     color_t white =  {255, 255, 255, 255};
     color_t yellow = {250, 180, 19 , 255};
-    char id_buf[5] = { 0 };
 
     // SNR Bars and satellite identifiers
     uint8_t bar_width = (width - 26) / 12;
@@ -678,9 +724,9 @@ void gfx_drawGPSgraph(point_t start,
                            start.y + (height - 8) - bar_height};
         color_t bar_color = (active_sats & 1 << (sats[i].id - 1)) ? yellow : white;
         gfx_drawRect(bar_pos, bar_width, bar_height, bar_color, true);
-        snprintf(id_buf, 5, "%2d ", sats[i].id);
         point_t id_pos = {bar_pos.x, start.y + height};
-        gfx_print(id_pos, id_buf, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, bar_color);
+        gfx_print(id_pos, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, 
+                  bar_color, "%2d ", sats[i].id);
     }
     uint8_t bars_width = 9 + 11 * (bar_width + 2);
     point_t left_line_end = {start.x, start.y + height - 9};
@@ -724,7 +770,7 @@ void gfx_drawGPScompass(point_t start,
     }
     // North indicator
     point_t n_pos = {start.x + radius - 3, start.y + 7};
-    gfx_print(n_pos, "N", FONT_SIZE_6PT, TEXT_ALIGN_LEFT, white);
+    gfx_print(n_pos, FONT_SIZE_6PT, TEXT_ALIGN_LEFT, white, "N");
 }
 void gfx_drawPolarDelta(point_t polar_center,
                         float az, float el, float polar_radius,
@@ -784,10 +830,10 @@ void gfx_drawPolarAzElPlot(point_t center, int radius, color_t color){
     }
     gfx_drawCircle(center, r1, color);
     gfx_drawCircle(center, r2, color);
-    gfx_print(az_top,  "N", font_size, TEXT_ALIGN_LEFT, color);
-    gfx_print(az_right,"E", font_size, TEXT_ALIGN_LEFT, color);
-    gfx_print(az_left, "W", font_size, TEXT_ALIGN_LEFT, color);
-    gfx_print(az_bot,  "S", font_size, TEXT_ALIGN_LEFT, color);
+    gfx_print(az_top, font_size, TEXT_ALIGN_LEFT, color,  "N");
+    gfx_print(az_right, font_size, TEXT_ALIGN_LEFT, color,"E");
+    gfx_print(az_left, font_size, TEXT_ALIGN_LEFT, color, "W");
+    gfx_print(az_bot, font_size, TEXT_ALIGN_LEFT, color,  "S");
 }
 void gfx_drawPolar( point_t center, int radius, float az, float el, int character, color_t color){
     point_t char_offset = {0,0};
@@ -822,7 +868,7 @@ void gfx_drawPolar( point_t center, int radius, float az, float el, int characte
         gfx_setPixel(finalpos, color);
     } else {
         snprintf(printbuf, 2, "%c", character);
-        gfx_print(finalpos,  printbuf, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color);
+        gfx_print(finalpos, FONT_SIZE_8PT, TEXT_ALIGN_LEFT, color,  printbuf);
     }
 }
 point_t azel_deg_to_xy( float az_deg, float elev_deg, float radius){

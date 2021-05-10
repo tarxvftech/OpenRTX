@@ -33,9 +33,11 @@
 #include <hwconfig.h>
 #include <string.h>
 #include <ADC1_MDx.h>
+#include <backlight.h>
 #include <calibInfo_MDx.h>
 #include <toneGenerator_MDx.h>
 #include <interfaces/rtc.h>
+#include <interfaces/audio.h>
 
 md3x0Calib_t calibration;
 hwInfo_t hwInfo;
@@ -72,50 +74,25 @@ void platform_init()
     nvm_loadHwInfo(&hwInfo);         /* Load hardware information data         */
     toneGen_init();                  /* Initialise tone generator              */
     rtc_init();                      /* Initialise RTC                         */
-
-    /*
-     * Configure TIM8 for backlight PWM: Fpwm = 100kHz with 8 bit of resolution.
-     * APB2 freq. is 84MHz, but timer runs at twice this frequency.
-     * Then: PSC = 655 to have Ftick = 256.097kHz
-     * With ARR = 256, Fpwm is 100kHz;
-     * Backlight pin is connected to TIM8 CR1.
-     */
-    RCC->APB2ENR |= RCC_APB2ENR_TIM8EN;
-    __DSB();
-
-    TIM8->ARR = 255;
-    TIM8->PSC = 654;
-    TIM8->CNT = 0;
-    TIM8->CR1   |= TIM_CR1_ARPE;    /* LCD backlight is on PC6, TIM8-CH1 */
-    TIM8->CCMR1 |= TIM_CCMR1_OC1M_2
-                |  TIM_CCMR1_OC1M_1
-                |  TIM_CCMR1_OC1PE;
-    TIM8->CCER  |= TIM_CCER_CC1E;
-    TIM8->BDTR  |= TIM_BDTR_MOE;
-    TIM8->CCR1 = 0;
-    TIM8->EGR  = TIM_EGR_UG;        /* Update registers */
-    TIM8->CR1 |= TIM_CR1_CEN;       /* Start timer */
+    backlight_init();                /* Initialise backlight driver            */
+    audio_init();                    /* Initialise audio management module     */
 }
 
 void platform_terminate()
 {
     /* Shut down backlight */
-    gpio_setMode(LCD_BKLIGHT, OUTPUT);
-    gpio_clearPin(LCD_BKLIGHT);
+    backlight_terminate();
 
     /* Shut down LEDs */
     gpio_clearPin(GREEN_LED);
     gpio_clearPin(RED_LED);
-
-    /* Shut down timer */
-    RCC->APB2ENR &= ~RCC_APB2ENR_TIM8EN;
-    __DSB();
 
     /* Shut down all the modules */
     adc1_terminate();
     nvm_terminate();
     toneGen_terminate();
     rtc_terminate();
+    audio_terminate();
 
     /* Finally, remove power supply */
     gpio_clearPin(PWR_SW);
@@ -128,20 +105,20 @@ float platform_getVbat()
      * adc1_getMeasurement returns a value in mV. Thus, to have effective
      * battery voltage multiply by three and divide by 1000
      */
-    return adc1_getMeasurement(0)*3.0f/1000.0f;
+    return adc1_getMeasurement(ADC_VBAT_CH)*3.0f/1000.0f;
 }
 
 float platform_getMicLevel()
 {
-    return adc1_getMeasurement(2);
+    return adc1_getMeasurement(ADC_VOX_CH);
 }
 
 float platform_getVolumeLevel()
 {
-    return adc1_getMeasurement(3);
+    return adc1_getMeasurement(ADC_VOL_CH);
 }
 
-uint8_t platform_getChSelector()
+int8_t platform_getChSelector()
 {
     static const uint8_t rsPositions[] = { 11, 14, 10, 15, 6, 3, 7, 2, 12, 13,
                                            9, 16, 5, 4, 8, 1 };
@@ -156,6 +133,17 @@ bool platform_getPttStatus()
 {
     /* PTT line has a pullup resistor with PTT switch closing to ground */
     return (gpio_readPin(PTT_SW) == 0) ? true : false;
+}
+
+bool platform_pwrButtonStatus()
+{
+    /*
+     * When power knob is set to off, battery voltage measurement returns 0V.
+     * Here we set the threshold to 1V since, with knob in off position, there
+     * is always a bit of noise in the ADC measurement making the returned
+     * voltage not to be exactly zero.
+     */
+    return (platform_getVbat() > 1.0f) ? true : false;
 }
 
 void platform_ledOn(led_t led)
@@ -203,11 +191,6 @@ void platform_beepStop()
     /* TODO */
 }
 
-void platform_setBacklightLevel(uint8_t level)
-{
-    TIM8->CCR1 = level;
-}
-
 const void *platform_getCalibrationData()
 {
     return ((const void *) &calibration);
@@ -217,3 +200,9 @@ const hwInfo_t *platform_getHwInfo()
 {
     return &hwInfo;
 }
+
+/*
+ * NOTE: implementation of this API function is provided in
+ * platform/drivers/backlight/backlight_MDx.c
+ */
+// void platform_setBacklightLevel(uint8_t level)

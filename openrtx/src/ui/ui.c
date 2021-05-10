@@ -127,7 +127,6 @@ const char *menu_items[] =
     "Zone",
     "Channels",
     "Contacts",
-    "Messages",
 #ifdef HAS_GPS
     "GPS",
     "SAT",
@@ -167,6 +166,7 @@ const char *settings_gps_items[] =
 
 const char *info_items[] =
 {
+    "",
     "Bat. Voltage",
     "Bat. Charge",
     "RSSI",
@@ -369,15 +369,13 @@ void ui_drawSplashScreen(bool centered)
         splash_origin.y = SCREEN_HEIGHT / 2 + 6;
     else
         splash_origin.y = SCREEN_HEIGHT / 4;
-    gfx_print(splash_origin, "OpenRTX", FONT_SIZE_12PT, TEXT_ALIGN_CENTER,
-              yellow_fab413);
+    gfx_print(splash_origin, FONT_SIZE_12PT, TEXT_ALIGN_CENTER, yellow_fab413, "OpenRTX");
     #else
     if(centered)
         splash_origin.y = SCREEN_HEIGHT / 2 - 6;
     else
         splash_origin.y = SCREEN_HEIGHT / 5;
-    gfx_print(splash_origin, "O P N\nR T X", FONT_SIZE_12PT, TEXT_ALIGN_CENTER,
-              yellow_fab413);
+    gfx_print(splash_origin, FONT_SIZE_12PT, TEXT_ALIGN_CENTER, yellow_fab413, "O P N\nR T X");
     #endif
 }
 
@@ -392,15 +390,15 @@ void _ui_drawLowBatteryScreen()
     point_t text_pos_2 = {0, SCREEN_HEIGHT * 2 / 3 + 16};
 
     gfx_print(text_pos_1,
-              "For emergency use",
               FONT_SIZE_6PT,
               TEXT_ALIGN_CENTER,
-              color_white);
+              color_white,
+              "For emergency use");
     gfx_print(text_pos_2,
-              "press any button.",
               FONT_SIZE_6PT,
               TEXT_ALIGN_CENTER,
-              color_white);
+              color_white,
+              "press any button.");
 }
 
 freq_t _ui_freq_add_digit(freq_t freq, uint8_t pos, uint8_t number)
@@ -719,8 +717,8 @@ void ui_saveState()
 
 void ui_updateFSM(event_t event, bool *sync_rtx)
 {
-    // The volume knob has been set to OFF, shutdown the radio
-    if(state.v_bat <= 0)
+    // User wants to power off the radio, so shutdown.
+    if(!platform_pwrButtonStatus())
     {
         state_terminate();
         platform_terminate();
@@ -1095,16 +1093,10 @@ void ui_updateFSM(event_t event, bool *sync_rtx)
                     if(ui_state.input_position < TIMEDATE_DIGITS)
                         break;
                     // Return to Time&Date menu, saving values
-                    // NOTE: The user inserted a local time, we save an UTC time to the RTC
-                    if(ui_state.new_timedate.hour - state.settings.utc_timezone >= 24)
-                        ui_state.new_timedate.hour = ui_state.new_timedate.hour - 24 -
-                        state.settings.utc_timezone;
-                    else if(ui_state.new_timedate.hour - state.settings.utc_timezone < 0)
-                        ui_state.new_timedate.hour = ui_state.new_timedate.hour + 24 -
-                        state.settings.utc_timezone;
-                    else
-                        ui_state.new_timedate.hour += state.settings.utc_timezone;
-                    rtc_setTime(ui_state.new_timedate);
+                    // NOTE: The user inserted a local time, we must save an UTC time
+                    curTime_t utc_time = state_getUTCTime(ui_state.new_timedate);
+                    rtc_setTime(utc_time);
+                    state.time = utc_time;
                     state.ui_screen = SETTINGS_TIMEDATE;
                 }
                 else if(msg.keys & KEY_ESC)
@@ -1122,7 +1114,7 @@ void ui_updateFSM(event_t event, bool *sync_rtx)
                 break;
 #endif
             case SETTINGS_DISPLAY:
-                if(msg.keys & KEY_LEFT || (msg.keys & KEY_UP && ui_state.edit_mode))
+                if(msg.keys & KEY_LEFT || (msg.keys & KEY_DOWN && ui_state.edit_mode))
                 {
                     switch(ui_state.menu_selected)
                     {
@@ -1138,7 +1130,7 @@ void ui_updateFSM(event_t event, bool *sync_rtx)
                             state.ui_screen = SETTINGS_DISPLAY;
                     }
                 }
-                else if(msg.keys & KEY_RIGHT || (msg.keys & KEY_DOWN && ui_state.edit_mode))
+                else if(msg.keys & KEY_RIGHT || (msg.keys & KEY_UP && ui_state.edit_mode))
                 {
                     switch(ui_state.menu_selected)
                     {

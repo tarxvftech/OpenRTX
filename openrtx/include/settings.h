@@ -31,9 +31,11 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#include <hwconfig.h>
+
 typedef struct
 {
-    uint8_t valid[6];     // Should contain "OPNRTX" in a valid settings_t
+    uint8_t valid[7];     // Should contain "OPNRTX" in a valid settings_t
     uint8_t brightness;
     uint8_t contrast;
     int8_t utc_timezone;
@@ -45,12 +47,16 @@ __attribute__((packed)) settings_t;
 
 static const settings_t default_settings =
 {
-    "OPNRTX",  // Settings valid string
-    255,       // Brightness
-    71,        // Contrast
-    0,         // UTC Timezone
-    true,     // GPS enabled //TODO for mike testing, don't save
-    true       // GPS set time
+    "OPNRTX",         // Settings valid string
+    255,              // Brightness
+#ifdef SCREEN_CONTRAST
+    DEFAULT_CONTRAST, // Contrast
+#else
+    255,              // Contrast
+#endif
+    0,                // UTC Timezone
+    true,            // GPS enabled TODO for mike testing, don't merge to master with this
+    true              // GPS set time
 };
 
 #endif /* SETTINGS_H */

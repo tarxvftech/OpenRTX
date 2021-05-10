@@ -48,14 +48,17 @@ void _ui_drawMainTop()
 #ifdef HAS_RTC
     // Print clock on top bar
     color_t color_red = {0xff,0x00,0x00, 0xff};
-    char clock_buf[9] = "";
-    snprintf(clock_buf, sizeof(clock_buf), "%02d:%02d:%02d", last_state.time.hour,
-             last_state.time.minute, last_state.time.second);
-    gfx_print(layout.top_pos, clock_buf, layout.top_font, TEXT_ALIGN_CENTER,
-              color_white);
+    curTime_t local_time = state_getLocalTime(last_state.time);
+    gfx_print(layout.top_pos, layout.top_font, TEXT_ALIGN_CENTER,
+              color_white, "%02d:%02d:%02d", local_time.hour,
+              local_time.minute, local_time.second);
 #endif
-
-    // Print battery icon on top bar, use 4 px padding
+    // If the radio has no built-in battery, print input voltage
+#ifdef BAT_NONE
+    gfx_print(layout.top_pos, layout.top_font, TEXT_ALIGN_RIGHT,
+              color_white,"%.1fV", last_state.v_bat);
+#else
+    // Otherwise print battery icon on top bar, use 4 px padding
     uint16_t bat_width = SCREEN_WIDTH / 9;
     uint16_t bat_height = layout.top_h - (layout.status_v_pad * 2);
     point_t bat_pos = {SCREEN_WIDTH - bat_width - layout.horizontal_pad,
@@ -68,18 +71,19 @@ void _ui_drawMainTop()
     /*point_t bat_txt_pos = {SCREEN_WIDTH-layout.horizontal_pad-10, 12};*/
     /*gfx_print(bat_txt_pos, bat, FONT_SIZE_5PT, TEXT_ALIGN_RIGHT, color_red);*/
 
+#endif
     // Print radio mode on top bar
-    char mode[4] = "";
     switch(last_state.channel.mode)
     {
         case FM:
-            strcpy(mode, "FM");
-            break;
+        gfx_print(layout.top_pos, layout.top_font, TEXT_ALIGN_LEFT,
+                  color_white, "FM");
+        break;
         case DMR:
-            strcpy(mode, "DMR");
-            break;
+        gfx_print(layout.top_pos, layout.top_font, TEXT_ALIGN_LEFT,
+                  color_white, "DMR");
+        break;
     }
-    gfx_print(layout.top_pos, mode, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
 
     int left_offset = 12;
     int right_offset = 40;
@@ -101,48 +105,44 @@ void _ui_drawMainTop()
     /*};*/
     uint8_t transmitting = rtxStatus.opStatus == TX;
     char tmp[10] = {0};
-    snprintf(tmp, 10, "%.0fW", last_state.channel.power);
-    gfx_print(top0, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting? color_red:color_white);
-    snprintf(tmp, 10, "%.4f", ((float)rtxStatus.rxFrequency)/1000000);
-    gfx_print(top1, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_grey:color_white);
-    snprintf(tmp, 10, "%.4f", ((float)rtxStatus.txFrequency)/1000000);
-    gfx_print(top2, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_white:color_grey);
+    gfx_print(top0, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting? color_red:color_white, 
+            "%.0fW", last_state.channel.power);
+    gfx_print(top1, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_grey:color_white, 
+            "%.4f", ((float)rtxStatus.rxFrequency)/1000000);
+    gfx_print(top2, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, transmitting?color_white:color_grey,
+            "%.4f", ((float)rtxStatus.txFrequency)/1000000);
     if( transmitting && rtxStatus.txToneEn ){
-        gfx_print(top3, "CTCSS", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_red);
-        snprintf(tmp, 10, "%.1f", ((float)rtxStatus.rxTone)/10);
-        gfx_print(top4, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+        gfx_print(top3, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_red, "CTCSS" );
+        gfx_print(top4, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white, "%.1f", ((float)rtxStatus.rxTone)/10);
     } else if( ! transmitting && rtxStatus.rxToneEn ){
-        gfx_print(top3, "CTCSS", FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
-        snprintf(tmp, 10, "%.1f", ((float)rtxStatus.rxTone)/10);
-        gfx_print(top4, tmp, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white);
+        gfx_print(top3, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white, "CTCSS");
+        gfx_print(top4, FONT_SIZE_5PT, TEXT_ALIGN_LEFT, color_white,
+                "%.1f", ((float)rtxStatus.rxTone)/10);
     }
 }
 
 void _ui_drawZoneChannel()
 {
-    char zone_buf[20] = "";
-    char channel_buf[25] = "";
-    if(!last_state.zone_enabled)
-        snprintf(zone_buf, sizeof(zone_buf), "zone: %.13s", "All channels");
-    else
-        snprintf(zone_buf, sizeof(zone_buf), "zone: %.13s", last_state.zone.name);
-    snprintf(channel_buf, sizeof(channel_buf), "  %03d: %.12s", last_state.channel_index,
-                                                             last_state.channel.name);
     // Print Zone name
-    gfx_print(layout.line1_pos, zone_buf, layout.line1_font, TEXT_ALIGN_LEFT, color_white);
+    if(!last_state.zone_enabled)
+        gfx_print(layout.line1_pos, layout.line1_font, TEXT_ALIGN_LEFT,
+                  color_white, "zone: All channels");
+    else
+        gfx_print(layout.line1_pos, layout.line1_font, TEXT_ALIGN_LEFT,
+                  color_white,  "zone: %.13s", last_state.zone.name);
     // Print Channel name
-    gfx_print(layout.line2_pos, channel_buf, layout.line2_font, TEXT_ALIGN_LEFT, color_white);
+    gfx_print(layout.line2_pos, layout.line2_font, TEXT_ALIGN_LEFT,
+              color_white, "  %03d: %.12s",
+              last_state.channel_index, last_state.channel.name);
 }
 
 void _ui_drawFrequency()
 {
     // Print big numbers frequency
-    char freq_buf[15] = "";
-    snprintf(freq_buf, sizeof(freq_buf), "%03lu.%05lu",
-             (unsigned long)last_state.channel.rx_frequency/1000000,
-             (unsigned long)last_state.channel.rx_frequency%1000000/10);
-    gfx_print(layout.line3_pos, freq_buf, layout.line3_font, TEXT_ALIGN_CENTER,
-              color_white);
+    gfx_print(layout.line3_pos, layout.line3_font, TEXT_ALIGN_CENTER,
+              color_white, "%03lu.%05lu",
+              (unsigned long)last_state.channel.rx_frequency/1000000,
+              (unsigned long)last_state.channel.rx_frequency%1000000/10);
 }
 
 void _ui_drawVFOMiddleInput(ui_state_t* ui_state)
@@ -151,17 +151,15 @@ void _ui_drawVFOMiddleInput(ui_state_t* ui_state)
     uint8_t insert_pos = ui_state->input_position + 3;
     if(ui_state->input_position > 3) insert_pos += 1;
     char input_char = ui_state->input_number + '0';
-    char freq_buf[15] = "";
 
     if(ui_state->input_set == SET_RX)
     {
         if(ui_state->input_position == 0)
         {
-            snprintf(freq_buf, sizeof(freq_buf), ">Rx:%03lu.%05lu",
-                     (unsigned long)ui_state->new_rx_frequency/1000000,
-                     (unsigned long)ui_state->new_rx_frequency%1000000/10);
-            gfx_print(layout.line2_pos, freq_buf, layout.input_font, TEXT_ALIGN_CENTER,
-                      color_white);
+            gfx_print(layout.line2_pos, layout.input_font, TEXT_ALIGN_CENTER,
+                      color_white, ">Rx:%03lu.%05lu",
+                      (unsigned long)ui_state->new_rx_frequency/1000000,
+                      (unsigned long)ui_state->new_rx_frequency%1000000/10);
         }
         else
         {
@@ -169,38 +167,35 @@ void _ui_drawVFOMiddleInput(ui_state_t* ui_state)
             if(ui_state->input_position == 1)
                 strcpy(ui_state->new_rx_freq_buf, ">Rx:___._____");
             ui_state->new_rx_freq_buf[insert_pos] = input_char;
-            gfx_print(layout.line2_pos, ui_state->new_rx_freq_buf, layout.input_font, TEXT_ALIGN_CENTER,
-                      color_white);
+            gfx_print(layout.line2_pos, layout.input_font, TEXT_ALIGN_CENTER,
+                      color_white, ui_state->new_rx_freq_buf);
         }
-        snprintf(freq_buf, sizeof(freq_buf), " Tx:%03lu.%05lu",
-                 (unsigned long)last_state.channel.tx_frequency/1000000,
-                 (unsigned long)last_state.channel.tx_frequency%1000000/10);
-        gfx_print(layout.line3_pos, freq_buf, layout.input_font, TEXT_ALIGN_CENTER,
-                  color_white);
+        gfx_print(layout.line3_pos, layout.input_font, TEXT_ALIGN_CENTER,
+                  color_white, " Tx:%03lu.%05lu",
+                  (unsigned long)last_state.channel.tx_frequency/1000000,
+                  (unsigned long)last_state.channel.tx_frequency%1000000/10);
     }
     else if(ui_state->input_set == SET_TX)
     {
-        snprintf(freq_buf, sizeof(freq_buf), " Rx:%03lu.%05lu",
-                 (unsigned long)ui_state->new_rx_frequency/1000000,
-                 (unsigned long)ui_state->new_rx_frequency%1000000/10);
-        gfx_print(layout.line2_pos, freq_buf, layout.input_font, TEXT_ALIGN_CENTER,
-                  color_white);
+        gfx_print(layout.line2_pos, layout.input_font, TEXT_ALIGN_CENTER,
+                  color_white, " Rx:%03lu.%05lu",
+                  (unsigned long)ui_state->new_rx_frequency/1000000,
+                  (unsigned long)ui_state->new_rx_frequency%1000000/10);
         // Replace Rx frequency with underscorses
         if(ui_state->input_position == 0)
         {
-            snprintf(freq_buf, sizeof(freq_buf), ">Tx:%03lu.%05lu",
-                     (unsigned long)ui_state->new_rx_frequency/1000000,
-                     (unsigned long)ui_state->new_rx_frequency%1000000/10);
-            gfx_print(layout.line3_pos, freq_buf, layout.input_font, TEXT_ALIGN_CENTER,
-                      color_white);
+            gfx_print(layout.line3_pos, layout.input_font, TEXT_ALIGN_CENTER,
+                      color_white, ">Tx:%03lu.%05lu",
+                      (unsigned long)ui_state->new_rx_frequency/1000000,
+                      (unsigned long)ui_state->new_rx_frequency%1000000/10);
         }
         else
         {
             if(ui_state->input_position == 1)
                 strcpy(ui_state->new_tx_freq_buf, ">Tx:___._____");
             ui_state->new_tx_freq_buf[insert_pos] = input_char;
-            gfx_print(layout.line3_pos, ui_state->new_tx_freq_buf, layout.input_font, TEXT_ALIGN_CENTER,
-                      color_white);
+            gfx_print(layout.line3_pos, layout.input_font, TEXT_ALIGN_CENTER,
+                      color_white, ui_state->new_tx_freq_buf);
         }
     }
 }

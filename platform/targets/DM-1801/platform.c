@@ -30,12 +30,14 @@
 
 #include <interfaces/platform.h>
 #include <interfaces/nvmem.h>
+#include <interfaces/audio.h>
 #include <interfaces/gpio.h>
 #include <calibInfo_GDx.h>
 #include <ADC0_GDx.h>
 #include <string.h>
 #include <I2C0.h>
 #include <pthread.h>
+#include <backlight.h>
 #include "hwconfig.h"
 
 /* Mutex for concurrent access to ADC0 */
@@ -50,33 +52,13 @@ void platform_init()
     gpio_setMode(GREEN_LED, OUTPUT);
     gpio_setMode(RED_LED,   OUTPUT);
 
-    gpio_setMode(LCD_BKLIGHT, OUTPUT);
-    gpio_clearPin(LCD_BKLIGHT);
-
     gpio_setMode(PTT_SW, INPUT);
 
     gpio_setMode(PWR_SW, OUTPUT);
 
-    /*
-     * Configure backlight PWM: 58.5kHz, 8 bit resolution
-     */
-    SIM->SCGC6 |= SIM_SCGC6_FTM0(1); /* Enable clock */
-
-    FTM0->CONTROLS[3].CnSC = FTM_CnSC_MSB(1)
-                           | FTM_CnSC_ELSB(1); /* Edge-aligned PWM, clear on match */
-    FTM0->CONTROLS[3].CnV  = 0;
-
-    FTM0->MOD  = 0xFF;                         /* Reload value          */
-    FTM0->SC   = FTM_SC_PS(3)                  /* Prescaler divide by 8 */
-               | FTM_SC_CLKS(1);               /* Enable timer          */
-
-    gpio_setMode(LCD_BKLIGHT, OUTPUT);
-    gpio_setAlternateFunction(LCD_BKLIGHT, 2);
-
-    /*
-     * Initialise ADC
-     */
-    adc0_init();
+    backlight_init();                /* Initialise backlight driver        */
+    audio_init();                    /* Initialise audio management module */
+    adc0_init();                     /* Initialise ADC                     */
     pthread_mutex_init(&adc_mutex, NULL);
 
     /*
@@ -110,7 +92,9 @@ void platform_init()
 
 void platform_terminate()
 {
-    gpio_clearPin(LCD_BKLIGHT);
+    /* Shut down backlight */
+    backlight_terminate();
+
     gpio_clearPin(RED_LED);
     gpio_clearPin(GREEN_LED);
 
@@ -118,6 +102,7 @@ void platform_terminate()
     pthread_mutex_destroy(&adc_mutex);
 
     i2c0_terminate();
+    audio_terminate();
 
     /* Finally, remove power supply */
     gpio_clearPin(PWR_SW);
@@ -149,7 +134,7 @@ float platform_getVolumeLevel()
     return 0.0f;
 }
 
-uint8_t platform_getChSelector()
+int8_t platform_getChSelector()
 {
     /* GD77 does not have a channel selector */
     return 0;
@@ -159,6 +144,17 @@ bool platform_getPttStatus()
 {
     /* PTT line has a pullup resistor with PTT switch closing to ground */
     return (gpio_readPin(PTT_SW) == 0) ? true : false;
+}
+
+bool platform_pwrButtonStatus()
+{
+    /*
+     * When power knob is set to off, battery voltage measurement returns 0V.
+     * Here we set the threshold to 1V since, with knob in off position, there
+     * is always a bit of noise in the ADC measurement making the returned
+     * voltage not to be exactly zero.
+     */
+    return (platform_getVbat() > 1.0f) ? true : false;
 }
 
 void platform_ledOn(led_t led)
@@ -207,11 +203,6 @@ void platform_beepStop()
     /* TODO */
 }
 
-void platform_setBacklightLevel(uint8_t level)
-{
-    FTM0->CONTROLS[3].CnV = level;
-}
-
 const void *platform_getCalibrationData()
 {
     /* The first time this function is called, load calibration data from flash */
@@ -227,3 +218,10 @@ const hwInfo_t *platform_getHwInfo()
 {
     return &hwInfo;
 }
+
+
+/*
+ * NOTE: implementation of this API function is provided in
+ * platform/drivers/backlight/backlight_GDx.c
+ */
+// void platform_setBacklightLevel(uint8_t level)

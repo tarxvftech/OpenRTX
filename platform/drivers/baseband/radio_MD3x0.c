@@ -81,9 +81,12 @@ void radio_init()
     gpio_setMode(TX_STG_EN, OUTPUT);
     gpio_setMode(RX_STG_EN, OUTPUT);
 
+    gpio_setMode(FM_MUTE,  OUTPUT);
+    gpio_clearPin(FM_MUTE);
+
     gpio_clearPin(PLL_PWR);    /* PLL off                                           */
     gpio_setPin(VCOVCC_SW);    /* VCOVCC high enables RX VCO, TX VCO if low         */
-    gpio_clearPin(WN_SW);      /* 25kHz bandwidth                                   */
+    gpio_setPin(WN_SW);        /* 25kHz bandwidth                                   */
     gpio_clearPin(DMR_SW);     /* Disconnect HR_C5000 input IF signal and audio out */
     gpio_clearPin(FM_SW);      /* Disconnect analog FM audio path                   */
     gpio_clearPin(RF_APC_SW);  /* Disable RF power control                          */
@@ -140,17 +143,17 @@ void radio_setBandwidth(const enum bandwidth bw)
     switch(bw)
     {
         case BW_12_5:
-            gpio_setPin(WN_SW);
+            gpio_clearPin(WN_SW);
             C5000_setModFactor(0x1E);
             break;
 
         case BW_20:
-            gpio_clearPin(WN_SW);
+            gpio_setPin(WN_SW);
             C5000_setModFactor(0x30);
             break;
 
         case BW_25:
-            gpio_clearPin(WN_SW);
+            gpio_setPin(WN_SW);
             C5000_setModFactor(0x3C);
             break;
 
@@ -215,6 +218,11 @@ void radio_enableRx()
     DAC->DHR12L1 = vtune_rx * 0xFF;
 
     gpio_setPin(RX_STG_EN);
+
+    if(currOpMode == FM)
+    {
+        gpio_setPin(FM_MUTE);
+    }
 }
 
 void radio_enableTx(const float txPower, const bool enableCss)
@@ -254,6 +262,7 @@ void radio_disableRtx()
 
     gpio_clearPin(TX_STG_EN);
     gpio_clearPin(RX_STG_EN);
+    gpio_clearPin(FM_MUTE);
 }
 
 void radio_updateCalibrationParams(const rtxStatus_t* rtxCfg)
@@ -300,7 +309,7 @@ float radio_getRssi(const freq_t rxFreq)
     if(rxFreq < 401035000) offset_index = 0;
     if(rxFreq > 479995000) offset_index = 8;
 
-    float rssi_mv  = adc1_getMeasurement(2);
+    float rssi_mv  = adc1_getMeasurement(ADC_RSSI_CH);
     float rssi_dbm = (rssi_mv - rssi_offset[offset_index]) / rssi_gain;
     return rssi_dbm;
 }
