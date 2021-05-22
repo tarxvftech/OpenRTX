@@ -190,10 +190,10 @@ void radio_setVcoFrequency(const freq_t frequency, const bool isTransmitting)
 
     if(!isTransmitting)
     {
-        freq = freq - IF_FREQ;
+        freq = freq + IF_FREQ;
     }
 
-    SKY73210_setFrequency(freq, 5);
+    SKY73210_setFrequency(freq*2.0f, 5);
 }
 
 void radio_setCSS(const tone_t rxCss, const tone_t txCss)
